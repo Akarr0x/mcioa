@@ -371,6 +371,7 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
     if nsc:
         dataset = Array2Ade4(dataset, pos=True)
 
+
         # Perform Non-Symmetric Correspondence Analysis on each dataset
         nsca_results = {f'dataset_{i}': dudi_nsc(df, nf=nf) for i, df in enumerate(dataset)}
         nsca_results_t = nsca_results
