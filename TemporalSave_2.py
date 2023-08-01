@@ -77,7 +77,7 @@ def dudi_nsc(df, nf=2):
     return X
 
 
-def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7):
+def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = None):
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Expected input is a pandas DataFrame.")
 
@@ -142,8 +142,10 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7):
         res['component_scores'] = res['principal_coordinates'].div(dval[::-1])
 
     res['call'] = None
-    res['class'] = ('type', 'dudi')
-
+    if type is None:
+        res['class'] = 'dudi'
+    else:
+        res['class'] = [type, "dudi"]
     return res
 
 def rv(m1, m2):
@@ -416,18 +418,18 @@ def sepan(X, nf=2):
     cw = X['column_weight']
     blo = X['blocks']
     ntab = len(blo)
-    tab = X[0]
     j1 = 0
     j2 = blo[0]
-    auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
+    auxi = as_dudi(X[0], cw[j1:j2], lw, nf=nf, scannf=False, type = "sepan")
 
     if auxi['factor_numbers'] < nf:
         auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
     Eig = auxi['eigenvalues']
-    Co = auxi['ColumnCoordinates']
-    Li = auxi['RowCoordinates']
-    C1 = auxi['NormalizedScores']
-    L1 = auxi['ComponentScores']
+    Co = auxi['principal_coordinates'] #todo double check that this is correct, should be but the names given by the r function are deceiving
+    Li = auxi['row_coordinates']
+    C1 = auxi['component_scores']
+    L1 = auxi['factor_scores']
+
     Li.index = [f'{index}.{j1}' for index in Li.index]
     L1.index = [f'{index}.{j1}' for index in L1.index]
     Co.index = [f'{index}.{j1}' for index in Co.index]
@@ -440,33 +442,33 @@ def sepan(X, nf=2):
         tab = X[i]
         auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
         Eig = Eig + auxi['eigenvalues']
-        auxi['RowCoordinates'].index = [f'{index}.{i}' for index in auxi['RowCoordinates'].index]
-        auxi['ComponentScores'].index = [f'{index}.{i}' for index in auxi['ComponentScores'].index]
-        auxi['ColumnCoordinates'].index = [f'{index}.{i}' for index in auxi['ColumnCoordinates'].index]
-        auxi['NormalizedScores'].index = [f'{index}.{i}' for index in auxi['NormalizedScores'].index]
+        auxi['row_coordinates'].index = [f'{index}.{i}' for index in auxi['row_coordinates'].index]
+        auxi['component_scores'].index = [f'{index}.{i}' for index in auxi['component_scores'].index]
+        auxi['principal_coordinates'].index = [f'{index}.{i}' for index in auxi['principal_coordinates'].index]
+        auxi['factor_scores'].index = [f'{index}.{i}' for index in auxi['factor_scores'].index]
 
         if auxi['factor_numbers'] < nf:
             auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
-        Co = pd.concat([Co, auxi['ColumnCoordinates']], axis=0)
-        Li = pd.concat([Li, auxi['RowCoordinates']], axis=0)
-        C1 = pd.concat([C1, auxi['NormalizedScores']], axis=0)
-        L1 = pd.concat([L1, auxi['ComponentScores']], axis=0)
+        Co = pd.concat([Co, auxi['principal_coordinates']], axis=0)
+        Li = pd.concat([Li, auxi['row_coordinates']], axis=0)
+        C1 = pd.concat([C1, auxi['component_scores']], axis=0)
+        L1 = pd.concat([L1, auxi['factor_scores']], axis=0)
         rank = rank + auxi['rank']
 
     res = {}
-    res['Li'] = Li
-    res['L1'] = L1
-    res['Co'] = Co
-    res['C1'] = C1
-    res['Eig'] = Eig
+    res['row_coordinates'] = Li
+    res['component_scores'] = L1
+    res['principal_coordinates'] = Co
+    res['factor_scores'] = C1
+    res['eigenvalues'] = Eig
     res['TL'] = X['TL']
     res['TC'] = X['TC']
     res['T4'] = X['T4']
-    res['blo'] = blo
+    res['blocks'] = blo
     res['rank'] = rank
-    res['tab.names'] = list(X.keys())[:ntab]
-    res['call'] = 'sepan'
+    res['tab_names'] = list(X.keys())[:ntab]
     res['class'] = ["sepan", "list"]
+
     return res
 
 
@@ -501,22 +503,22 @@ def mcoa(X, option=None, scannf=True, nf=3, tol=1e-07):
         if X.get('tabw') is None:
             print("Internal weights not found: uniform weights are used")
             option = "uniform"
-    lw = X['lw']
+    lw = X['row_weight']
     nlig = len(lw)
-    cw = X['cw']
+    cw = X['column_weight']
     ncol = len(cw)
-    nbloc = len(X['blo'])
+    nbloc = len(X['blocks'])
     indicablo = X['TC'][0]
     veclev = list(set(X['TC'][0]))
-    Xsepan = sepan(X, nf=4)  # Assuming sepan is a function you've defined
+    Xsepan = sepan(X, nf=4)
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
 
     tabw = []
     auxinames = ktab_util_names(X)  # Assuming ktab_util_names is a function you've defined
     if option == "lambda1":
-        tabw = [1 / Xsepan["Eig"][rank_fac[i - 1]][0] for i in range(1, nbloc + 1)]
+        tabw = [1 / Xsepan["eigenvalues"][rank_fac[i - 1]][0] for i in range(1, nbloc + 1)]
     elif option == "inertia":
-        tabw = [1 / sum(Xsepan["Eig"][rank_fac[i - 1]]) for i in range(1, nbloc + 1)]
+        tabw = [1 / sum(Xsepan["eigenvalues"][rank_fac[i - 1]]) for i in range(1, nbloc + 1)]
     elif option == "uniform":
         tabw = [1] * nbloc
     elif option == "internal":
@@ -529,4 +531,4 @@ def mcoa(X, option=None, scannf=True, nf=3, tol=1e-07):
 
     Xsepan = sepan(X, nf=4)  # Recalculate sepan with the updated X
 
-    # Line 37. Must be checked
+    # Line 59. Must be checked
