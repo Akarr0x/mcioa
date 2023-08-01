@@ -77,7 +77,7 @@ def dudi_nsc(df, nf=2):
     return X
 
 
-def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7):
+def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = None):
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Expected input is a pandas DataFrame.")
 
@@ -142,8 +142,10 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7):
         res['component_scores'] = res['principal_coordinates'].div(dval[::-1])
 
     res['call'] = None
-    res['class'] = ('type', 'dudi')
-
+    if type is None:
+        res['class'] = 'dudi'
+    else:
+        res['class'] = [type, "dudi"]
     return res
 
 def rv(m1, m2):
@@ -388,7 +390,7 @@ def complete_dudi(dudi, nf1, nf2):
     return dudi
 
 
-def normaliserparbloc(scorcol, nbloc, indicablo, veclev, tol=1e-7):
+def normalizer_per_block(scorcol, nbloc, indicablo, veclev, tol=1e-7):
     for i in range(nbloc):
         w1 = scorcol[indicablo == veclev[i]]
         w2 = np.sqrt(np.sum(w1 * w1))
@@ -398,7 +400,7 @@ def normaliserparbloc(scorcol, nbloc, indicablo, veclev, tol=1e-7):
     return scorcol
 
 
-def recalculer(tab, scorcol, nbloc, indicablo, veclev):
+def recalculate(tab, scorcol, nbloc, indicablo, veclev):
     for k in range(nbloc):
         soustabk = tab.loc[:, indicablo == veclev[k]]
         uk = scorcol[indicablo == veclev[k]]
@@ -416,18 +418,18 @@ def sepan(X, nf=2):
     cw = X['column_weight']
     blo = X['blocks']
     ntab = len(blo)
-    tab = X[0]
     j1 = 0
     j2 = blo[0]
-    auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
+    auxi = as_dudi(X[0], cw[j1:j2], lw, nf=nf, scannf=False, type = "sepan")
 
     if auxi['factor_numbers'] < nf:
         auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
     Eig = auxi['eigenvalues']
-    Co = auxi['ColumnCoordinates']
-    Li = auxi['RowCoordinates']
-    C1 = auxi['NormalizedScores']
-    L1 = auxi['ComponentScores']
+    Co = auxi['principal_coordinates'] #todo double check that this is correct, should be but the names given by the r function are deceiving
+    Li = auxi['row_coordinates']
+    C1 = auxi['component_scores']
+    L1 = auxi['factor_scores']
+
     Li.index = [f'{index}.{j1}' for index in Li.index]
     L1.index = [f'{index}.{j1}' for index in L1.index]
     Co.index = [f'{index}.{j1}' for index in Co.index]
@@ -440,33 +442,33 @@ def sepan(X, nf=2):
         tab = X[i]
         auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
         Eig = Eig + auxi['eigenvalues']
-        auxi['RowCoordinates'].index = [f'{index}.{i}' for index in auxi['RowCoordinates'].index]
-        auxi['ComponentScores'].index = [f'{index}.{i}' for index in auxi['ComponentScores'].index]
-        auxi['ColumnCoordinates'].index = [f'{index}.{i}' for index in auxi['ColumnCoordinates'].index]
-        auxi['NormalizedScores'].index = [f'{index}.{i}' for index in auxi['NormalizedScores'].index]
+        auxi['row_coordinates'].index = [f'{index}.{i}' for index in auxi['row_coordinates'].index]
+        auxi['component_scores'].index = [f'{index}.{i}' for index in auxi['component_scores'].index]
+        auxi['principal_coordinates'].index = [f'{index}.{i}' for index in auxi['principal_coordinates'].index]
+        auxi['factor_scores'].index = [f'{index}.{i}' for index in auxi['factor_scores'].index]
 
         if auxi['factor_numbers'] < nf:
             auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
-        Co = pd.concat([Co, auxi['ColumnCoordinates']], axis=0)
-        Li = pd.concat([Li, auxi['RowCoordinates']], axis=0)
-        C1 = pd.concat([C1, auxi['NormalizedScores']], axis=0)
-        L1 = pd.concat([L1, auxi['ComponentScores']], axis=0)
+        Co = pd.concat([Co, auxi['principal_coordinates']], axis=0)
+        Li = pd.concat([Li, auxi['row_coordinates']], axis=0)
+        C1 = pd.concat([C1, auxi['component_scores']], axis=0)
+        L1 = pd.concat([L1, auxi['factor_scores']], axis=0)
         rank = rank + auxi['rank']
 
     res = {}
-    res['Li'] = Li
-    res['L1'] = L1
-    res['Co'] = Co
-    res['C1'] = C1
-    res['Eig'] = Eig
+    res['row_coordinates'] = Li
+    res['component_scores'] = L1
+    res['principal_coordinates'] = Co
+    res['factor_scores'] = C1
+    res['eigenvalues'] = Eig
     res['TL'] = X['TL']
     res['TC'] = X['TC']
     res['T4'] = X['T4']
-    res['blo'] = blo
+    res['blocks'] = blo
     res['rank'] = rank
-    res['tab.names'] = list(X.keys())[:ntab]
-    res['call'] = 'sepan'
+    res['tab_names'] = list(X.keys())[:ntab]
     res['class'] = ["sepan", "list"]
+
     return res
 
 
@@ -490,6 +492,27 @@ def ktab_util_names(x):
 
     return {'row': w1, 'col': w2, 'tab': w3, 'Trow': w4}
 
+def tab_names(x, value):
+    # Check if x has the required attributes for a 'ktab' object
+    if not hasattr(x, 'blocks'):
+        raise ValueError("to be used with 'ktab' object")
+
+    ntab = len(x['blocks'])
+    old = x['tab.names'][:ntab] if 'tab.names' in x else None
+
+    if old is not None and len(value) != len(old):
+        raise ValueError("invalid tab.names length")
+
+    value = [str(v) for v in value]
+
+    if len(set(value)) != len(value):
+        raise ValueError("duplicate tab.names are not allowed")
+
+    x['tab.names'] = value[:ntab]
+
+    return x
+
+
 
 def mcoa(X, option=None, scannf=True, nf=3, tol=1e-07):
     if option is None:
@@ -501,22 +524,22 @@ def mcoa(X, option=None, scannf=True, nf=3, tol=1e-07):
         if X.get('tabw') is None:
             print("Internal weights not found: uniform weights are used")
             option = "uniform"
-    lw = X['lw']
+    lw = X['row_weight']
     nlig = len(lw)
-    cw = X['cw']
+    cw = X['column_weight']
     ncol = len(cw)
-    nbloc = len(X['blo'])
+    nbloc = len(X['blocks'])
     indicablo = X['TC'][0]
     veclev = list(set(X['TC'][0]))
-    Xsepan = sepan(X, nf=4)  # Assuming sepan is a function you've defined
+    Xsepan = sepan(X, nf=4)
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
 
     tabw = []
     auxinames = ktab_util_names(X)  # Assuming ktab_util_names is a function you've defined
     if option == "lambda1":
-        tabw = [1 / Xsepan["Eig"][rank_fac[i - 1]][0] for i in range(1, nbloc + 1)]
+        tabw = [1 / Xsepan["eigenvalues"][rank_fac[i - 1]][0] for i in range(1, nbloc + 1)]
     elif option == "inertia":
-        tabw = [1 / sum(Xsepan["Eig"][rank_fac[i - 1]]) for i in range(1, nbloc + 1)]
+        tabw = [1 / sum(Xsepan["eigenvalues"][rank_fac[i - 1]]) for i in range(1, nbloc + 1)]
     elif option == "uniform":
         tabw = [1] * nbloc
     elif option == "internal":
@@ -529,4 +552,203 @@ def mcoa(X, option=None, scannf=True, nf=3, tol=1e-07):
 
     Xsepan = sepan(X, nf=4)  # Recalculate sepan with the updated X
 
-    # Line 37. Must be checked
+    # Convert the first element of X to a DataFrame and assign it to tab
+    tab = pd.DataFrame(X[0])
+
+    # Concatenate the remaining elements of X (from the 2nd to nbloc) to the columns of tab
+    for i in range(1, nbloc):
+        tab = pd.concat([tab, pd.DataFrame(X[i])], axis=1)
+
+    # Assign the names of the columns of tab from auxinames['col']
+    tab.columns = auxinames['col']
+
+    # Multiply the rows of tab by the square root of lw
+    tab = tab.mul(np.sqrt(lw), axis=0)
+
+    # Multiply the columns of tab by the square root of cw
+    tab = tab.mul(np.sqrt(cw), axis=1)
+
+    # Initialize empty lists compogene and uknorme, and a None value valsing
+    compogene = []
+    uknorme = []
+    valsing = None
+
+    # Set the value of nfprovi to the minimum of 20, nlig, and ncol
+    nfprovi = min(20, nlig, ncol)
+    # Loop from 1 to nfprovi (as defined earlier)
+    for i in range(nfprovi):
+        # Perform singular value decomposition (SVD) on tab
+        u, s, vt = np.linalg.svd(tab)
+
+        # Extract the first column of u and normalize by the square root of lw (row_weights)
+        normalized_u = u[:, 0] / np.sqrt(lw)
+        compogene.append(normalized_u)  # Append to the list of compogene
+
+        # Extract the first column of vt (v transposed in SVD), then normalize by the custom function normalizer_per_block
+        normalized_v = normalizer_per_block(vt[0, :])
+
+        # Re-calculate tab using the custom function recalculate
+        tab = recalculate(tab, normalized_v)
+
+        # Normalize normalized_v by the square root of cw (column_weights) and append to the list of uknorme
+        normalized_v /= np.sqrt(cw)
+        uknorme.append(normalized_v)
+
+        # Extract the first singular value from s and append to valsing
+        singular_value = s[0]
+        valsing = valsing if valsing is None else np.concatenate([valsing, [singular_value]])
+
+        # Squaring the valsing to get pseudo eigenvalues
+        pseudo_eigenvalues = valsing ** 2
+
+        # Ensure nf is at least 2
+        if nf <= 0:
+            nf = 2
+
+        # Initialize a dictionary to store different components
+        acom = {}
+        acom['pseudo_eigenvalues'] = pseudo_eigenvalues
+
+        # Initialize a matrix to store eigenvalues for different blocks
+        lambda_matrix = np.zeros((nbloc, nf))
+        for i in range(nbloc):
+            w1 = Xsepan['eigenvalues'][rank_fac == i]
+            r0 = Xsepan['rank'][i]
+            if r0 > nf:
+                r0 = nf
+            lambda_matrix[i, :r0] = w1[:r0]
+
+        # Convert the matrix to a DataFrame and assign row and column names
+        lambda_df = pd.DataFrame(lambda_matrix)
+        lambda_df.index = Xsepan['tab_names']
+        lambda_df.columns = [f'lam{i}' for i in range(1, nf + 1)]
+        acom['lambda'] = lambda_df
+
+        # Create a DataFrame for synthesized variables
+        syn_var_df = pd.DataFrame(np.array(compogene).T[:, :nf])
+        syn_var_df.columns = [f'SynVar{i}' for i in range(1, nf + 1)]
+        syn_var_df.index = X.index.names
+        acom['SynVar'] = syn_var_df
+
+        # Create a DataFrame for axes
+        axis_df = pd.DataFrame(np.array(uknorme).T[:, :nf])
+        axis_df.columns = [f'Axis{i}' for i in range(1, nf + 1)]
+        axis_df.index = auxinames['col']
+        acom['axis'] = axis_df
+
+        # Initialize matrices for further processing
+        w = np.zeros((nlig * nbloc, nf))
+        covar = np.zeros((nbloc, nf))
+        i1 = 0
+        i2 = 0
+
+        # Initialize variables
+        i1 = 0
+        i2 = 0
+        w = np.zeros((nlig * nbloc, nfprovi))
+        covar = np.zeros((nbloc, nfprovi))
+
+        # Iterate over blocks
+        for k in range(nbloc):
+            i1 = i2 + 1
+            i2 = i2 + nlig
+            # Select appropriate rows from the axis DataFrame
+            urk = acom['axis'].loc[indicablo == veclev[k]].values
+            # Extract corresponding matrix from X
+            tab = np.array(X[k])
+            # Multiply urk by appropriate column weights
+            urk = urk * cw[indicablo == veclev[k]]
+            urk = tab.dot(urk)
+            w[i1 - 1:i2, :] = urk
+            urk = urk.dot(acom['SynVar']) * lw
+            covar[k, :] = urk.sum(axis=1)
+
+        # Convert w to DataFrame with appropriate row names and column names
+        w_df = pd.DataFrame(w, index=auxinames['row'])
+        w_df.columns = [f"Axis{str(i + 1)}" for i in range(nfprovi)]
+        acom['Tli'] = w_df
+
+        # Convert covar to DataFrame and square it, then store in acom
+        covar_df = pd.DataFrame(covar)
+        covar_df.index = tab_names(X)  # Assuming tab_names is a function that returns the appropriate row names
+        covar_df.columns = [f"cov2{str(i + 1)}" for i in range(nfprovi)]
+        acom['cov2'] = covar_df ** 2
+
+        # Reset i1 and i2
+        i1 = 0
+        i2 = 0
+        # Initialize w and indices
+        w = np.zeros((nlig * nbloc, nfprovi))
+        i1 = 0
+        i2 = 0
+
+        # Iterate over blocks to adjust w based on Tli and sqrt of lw
+        for k in range(nbloc):
+            i1 = i2 + 1
+            i2 = i2 + nlig
+            tab = acom['Tli'].iloc[i1 - 1:i2, :]
+            adjusted_tab = (tab * np.sqrt(lw)).pow(2).sum(axis=0).apply(np.sqrt)
+            tab = tab.divide(adjusted_tab, axis=1)
+            w[i1 - 1:i2, :] = tab
+
+        # Create DataFrame for adjusted w and store it as Tl1 in acom
+        w_df = pd.DataFrame(w, index=auxinames['row'])
+        w_df.columns = [f"Axis{str(i + 1)}" for i in range(nfprovi)]
+        acom['Tl1'] = w_df
+
+        # Reset variables
+        w = np.zeros((ncol, nfprovi))
+        i1 = 0
+        i2 = 0
+
+        # Iterate over blocks to update w based on SynVar and lw
+        for k in range(nbloc):
+            i1 = i2 + 1
+            i2 = i2 + X[k].shape[1]
+            urk = np.array(acom['SynVar'])
+            tab = np.array(X[k])
+            urk = urk * lw
+            w[i1 - 1:i2, :] = tab.T.dot(urk)
+
+        # Create DataFrame for w and store it as Tco in acom
+        w_df = pd.DataFrame(w, index=auxinames['col'])
+        w_df.columns = [f"SV{str(i + 1)}" for i in range(nfprovi)]
+        acom['Tco'] = w_df
+
+        # Reset variables and initialize var.names
+        var_names = []
+        w = np.zeros((nbloc * 4, nfprovi))
+        i1 = 0
+        i2 = 0
+
+        # Iterate over blocks to update w and var.names based on axis and Xsepan
+        for k in range(nbloc):
+            i1 = i2 + 1
+            i2 = i2 + 4
+            urk = acom['axis'].loc[indicablo == veclev[k]].values
+            tab = Xsepan['C1'].loc[indicablo == veclev[k]].values
+            urk = urk * cw[indicablo == veclev[k]]
+            tab = tab.T.dot(urk)
+            for i in range(min(nfprovi, 4)):
+                if tab[i, i] < 0:
+                    tab[i, :] = -tab[i, :]
+            w[i1 - 1:i2, :] = tab
+            var_names.extend([f"{Xsepan['tab.names'][k]}.a{str(i + 1)}" for i in range(4)])
+
+        # Create DataFrame for w and store it as Tax in acom
+        w_df = pd.DataFrame(w, index=auxinames['tab'])
+        w_df.columns = [f"Axis{str(i + 1)}" for i in range(nfprovi)]
+        acom['Tax'] = w_df
+
+        # Set additional properties of acom
+        acom['nf'] = nf
+        acom['TL'] = X['TL']
+        acom['TC'] = X['TC']
+        acom['T4'] = X['T4']
+        acom['class'] = 'mcoa'
+
+        # Assuming match.call() equivalent is needed in Python
+        acom['call'] = "Equivalent of match.call() in Python"
+
+        return acom
+
