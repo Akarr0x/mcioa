@@ -194,10 +194,10 @@ def t_dudi(x):
     res['eigenvalues'] = x['eigenvalues']
     res['rank'] = x['rank']
     res['factor_numbers'] = x['factor_numbers']
-    res['ComponentScores'] = x['row_coordinates']
-    res['RowCoordinates'] = x['component_scores']
-    res['PrincipalCoordinates'] = x['factor_scores']
-    res['FactorScores'] = x['principal_coordinates']
+    res['component_scores'] = x['row_coordinates']
+    res['row_coordinates'] = x['component_scores']
+    res['principal_coordinates'] = x['factor_scores']
+    res['factor_scores'] = x['principal_coordinates']
     res['dudi'] = 'transpo'
     return res
 
