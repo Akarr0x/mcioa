@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from numpy.linalg import svd
 import itertools
+import matplotlib as plt
+from scipy.linalg import eigh
 
 
 def get_data(dataset):
@@ -19,7 +21,7 @@ def get_data(dataset):
 
 def Array2Ade4(dataset, pos=False, trans=False):
     if not (isinstance(dataset, pd.DataFrame)):
-        dataset = get_data(dataset) # This in case it is not a dataframe TODO think of other classes and add those
+        dataset = get_data(dataset)  # This in case it is not a dataframe TODO think of other classes and add those
 
     for i in range(len(dataset)):
         if dataset[i].isnull().values.any():
@@ -58,105 +60,91 @@ def dudi_nsc(df, nf=2):
     row_w = df.sum(axis=1) / N
     col_w = df.sum(axis=0) / N
 
+    # Transpose if more rows than columns
+    transpose = False
+    if df.shape[1] > df.shape[0]:
+        transpose = True
+        df = df.T
+        col, row_w, col_w = df.shape[1], col_w, row_w  # Swap row and column weights
+
     df = df.T.apply(lambda x: col_w if x.sum() == 0 else x / x.sum()).T
-    df = df.mul(col_w, axis=1)
+    df = df.subtract(col_w, axis=1)
     df *= col
 
-    X = as_dudi(df, np.repeat(1, col) / col, row_w, nf)
+    X = as_dudi(df, np.ones(col) / col, row_w, nf)
     X['N'] = N
 
     return X
 
 
-
-def as_dudi(df, col_w, row_w, nf=2):
-    """
-    The function weights the input data by square roots of the row and column weights to maintain total variance
-    and then computes SVD. The reduced-dimension representation of the input data and corresponding variables are
-    returned.
-    """
-    # TODO this does not take into account the possibility of having ncol > nrows and the eventual transpose because of it. Should be updated (!transpose in the r function)
-    # Check if input is a DataFrame
+def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7):
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Expected input is a pandas DataFrame.")
 
-    # Check if weights vectors match the size of rows and columns of the DataFrame
-    if len(col_w) != df.shape[1] or len(row_w) != df.shape[0]:
+    lig, col = df.shape
+    if len(col_w) != col:
         raise ValueError("Weights dimensions must match DataFrame dimensions.")
-
-    # Check for negative values in weights
-    if any(col_w < 0) or any(row_w < 0):
+    if len(row_w) != lig:
+        raise ValueError("Weights dimensions must match DataFrame dimensions.")
+    if any(col_w < 0):
+        raise ValueError("Weights must be non-negative.")
+    if any(row_w < 0):
         raise ValueError("Weights must be non-negative.")
 
-    # Create a copy of the DataFrame to prevent changes to original data
-    df = df.copy()
+    transpose = False
+    if lig < col:
+        transpose = True
 
-    # Convert weights to numpy arrays and take their square roots
-    # This process is to ensure each row/column contributes equally to the total variance
-    row_w_sqrt = np.sqrt(row_w) if isinstance(row_w, np.ndarray) else np.sqrt(row_w.to_numpy())
-    col_w_sqrt = np.sqrt(col_w) if isinstance(col_w, np.ndarray) else np.sqrt(col_w.to_numpy())
+    res = {'weighted_table': df.copy(), 'column_weight': col_w, 'row_weight': row_w}
+    df_ori = df.copy()
+    df = df.multiply(np.sqrt(row_w), axis=0)
+    df = df.multiply(np.sqrt(col_w), axis=1)
 
-    # Apply weights to the DataFrame
-    df *= row_w_sqrt[:, None]  # Multiply rows by sqrt of row weights
-    df *= col_w_sqrt[None, :]  # Multiply columns by sqrt of column weights
+    if not transpose:
+        eigen_matrix = np.dot(df.T, df)
+    else:
+        eigen_matrix = np.dot(df, df.T)
 
-    # Perform SVD on the weighted DataFrame
-    # U contains left singular vectors, s contains singular values, Vt contains right singular vectors
-    U, s, Vt = np.linalg.svd(df)
+    eig_values, eig_vectors = eigh(eigen_matrix)
+    eig_values = eig_values[::-1]
 
-    # Compute eigenvalues from singular values
-    # In SVD, eigenvalues are square of singular values divided by degrees of freedom (n-1 for n data points)
-    eig = s ** 2 / (df.shape[0] - 1)
-
-    # Rank of eigenvalues indicates the number of non-negligible dimensions in the data
-    # It's computed as number of eigenvalues significantly greater than zero (here, greater than 1e-7 of the first eigenvalue)
-    rank = (eig / eig[0] > 1e-7).sum()
-
-    # The number of factors (dimensions) to keep is minimum of user-input 'nf' and the rank
+    rank = sum((eig_values / eig_values[0]) > tol)
     nf = min(nf, rank)
 
-    # The dval is the square roots of the nf largest eigenvalues
-    # They're used for scaling the component scores and factor scores
-    dval = np.sqrt(eig[:nf])
+    if full:
+        nf = rank
 
-    # Compute the reciprocal of the square root of weights
-    # These are used to scale the component scores and factor scores to get principal coordinates and row coordinates
-    col_w_sqrt_rec = np.reciprocal(col_w_sqrt)
-    row_w_sqrt_rec = np.reciprocal(row_w_sqrt)
+    res['eigenvalues'] = eig_values[:rank]
+    res['rank'] = rank
+    res['factor_numbers'] = nf
+    col_w[col_w == 0] = 1
+    row_w[row_w == 0] = 1
+    dval = np.sqrt(res['eigenvalues'][:nf])
 
-    # Compute component scores as the product of right singular vectors (components of Vt)
-    # and the reciprocal of the square root of column weights
-    component_scores = pd.DataFrame((Vt.T[:, :nf] * col_w_sqrt_rec[:, None]),
-                                    columns=[f'ComponentScore{i + 1}' for i in range(nf)])
+    if not transpose:
+        col_w_sqrt_rec = 1 / np.sqrt(col_w)
+        component_scores = eig_vectors[:, -nf:] * col_w_sqrt_rec.reshape(-1, 1)
+        factor_scores = df_ori.multiply(res['column_weight'], axis=1)
+        factor_scores = pd.DataFrame(factor_scores.values @ component_scores)  # Matrix multiplication and conversion to DataFrame
 
-    # Compute factor scores as the product of the weighted DataFrame and the component scores
-    # This operation projects the original data onto the new component axes
-    factor_scores = pd.DataFrame((df.values @ component_scores.values),
-                                 columns=[f'FactorScore{i + 1}' for i in range(nf)])
+        res['component_scores'] = pd.DataFrame(component_scores, columns=[f'CS{i + 1}' for i in range(nf)])
+        res['factor_scores'] = factor_scores
+        res['factor_scores'].columns = [f'Axis{i + 1}' for i in range(nf)]
+        res['principal_coordinates'] = res['component_scores'].multiply(dval[::-1])
+        res['row_coordinates'] = res['factor_scores'].div(dval[::-1])
+    else:
+        row_w_sqrt_rec = 1 / np.sqrt(row_w)
+        row_coordinates = eig_vectors[:, -nf:] * row_w_sqrt_rec.to_numpy().reshape(-1, 1)
+        principal_coordinates = (df.T.multiply(res['row_weight'], axis='columns') @ row_coordinates).T
+        res['row_coordinates'] = pd.DataFrame(row_coordinates, columns=[f'RS{i + 1}' for i in range(nf)])
+        res['principal_coordinates'] = pd.DataFrame(principal_coordinates, columns=[f'Comp{i + 1}' for i in range(nf)])
+        res['factor_scores'] = res['row_coordinates'].multiply(dval[::-1])
+        res['component_scores'] = res['principal_coordinates'].div(dval[::-1])
 
-    # Compute principal coordinates as the product of the component scores and dval
-    # The principal coordinates represent the original variables in the reduced-dimension space
-    principal_coordinates = component_scores.multiply(dval)
+    res['call'] = None
+    res['class'] = ('type', 'dudi')
 
-    # Compute row coordinates as the division of the factor scores by dval
-    # The row coordinates represent the original observations in the reduced-dimension space
-    row_coordinates = factor_scores.div(dval)
-
-    # Return the results as a dictionary
-    return {
-        'eigenvalues': eig[:rank],  # The eigenvalues
-        'rank': rank,  # The rank
-        'factor_numbers': nf,  # Number of factors
-        'weighted_table': df,  # The weighted table
-        'column_weight': col_w,  # Column weights
-        'row_weight': row_w,  # Row weights
-        'ComponentScores': component_scores,  # How much each column contributes to each factor
-        'FactorScores': factor_scores,  # How much each row contributes to each factor
-        'PrincipalCoordinates': principal_coordinates,  # Principal coordinates of the columns in the new space defined by the factors
-        'RowCoordinates': row_coordinates,  # Principal coordinates of the columns in the new space defined by the factors
-    }
-
-
+    return res
 
 def rv(m1, m2):
     # Convert the datasets to numpy arrays for easier manipulation
@@ -167,6 +155,8 @@ def rv(m1, m2):
     # Calculate the RV coefficient using the formula.
     rv = np.sum(nscm1 * nscm2) / np.sqrt(np.sum(nscm1 * nscm1) * np.sum(nscm2 * nscm2))
     return rv
+
+
 def pairwise_rv(dataset):
     # Define an internal function, rv, which calculates the RV coefficient between two datasets.
 
@@ -202,10 +192,10 @@ def t_dudi(x):
     res['eigenvalues'] = x['eigenvalues']
     res['rank'] = x['rank']
     res['factor_numbers'] = x['factor_numbers']
-    res['ComponentScores'] = x['RowCoordinates']
-    res['RowCoordinates'] = x['ComponentScores']
-    res['PrincipalCoordinates'] = x['FactorScores']
-    res['FactorScores'] = x['PrincipalCoordinates']
+    res['ComponentScores'] = x['row_coordinates']
+    res['RowCoordinates'] = x['component_scores']
+    res['PrincipalCoordinates'] = x['factor_scores']
+    res['FactorScores'] = x['principal_coordinates']
     res['dudi'] = 'transpo'
     return res
 
@@ -346,8 +336,6 @@ def compile_tables(objects, rownames=None, colnames=None, tablenames=None):
     return compiled_tables
 
 
-
-
 def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
     for i, data in enumerate(dataset):
         if not isinstance(data, pd.DataFrame):
@@ -371,7 +359,6 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
     if nsc:
         dataset = Array2Ade4(dataset, pos=True)
 
-
         # Perform Non-Symmetric Correspondence Analysis on each dataset
         nsca_results = {f'dataset_{i}': dudi_nsc(df, nf=nf) for i, df in enumerate(dataset)}
         nsca_results_t = nsca_results
@@ -388,5 +375,158 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
         # mcoin  = try(mcoa2(X = ktcoa, nf = cia.nf, scannf = FALSE), silent=TRUE)
 
 
+def complete_dudi(dudi, nf1, nf2):
+    pcolzero = nf2 - nf1 + 1
+    w = pd.DataFrame(np.zeros((dudi['li'].shape[0], pcolzero)), columns=[f'Axis{i}' for i in range(nf1, nf2 + 1)])
+    dudi['li'] = pd.concat([dudi['li'], w], axis=1)
+    w = pd.DataFrame(np.zeros((dudi['li'].shape[0], pcolzero)), columns=[f'RS{i}' for i in range(nf1, nf2 + 1)])
+    dudi['l1'] = pd.concat([dudi['l1'], w], axis=1)
+    w = pd.DataFrame(np.zeros((dudi['co'].shape[0], pcolzero)), columns=[f'Comp{i}' for i in range(nf1, nf2 + 1)])
+    dudi['co'] = pd.concat([dudi['co'], w], axis=1)
+    w = pd.DataFrame(np.zeros((dudi['co'].shape[0], pcolzero)), columns=[f'CS{i}' for i in range(nf1, nf2 + 1)])
+    dudi['c1'] = pd.concat([dudi['c1'], w], axis=1)
+    return dudi
 
 
+def normaliserparbloc(scorcol, nbloc, indicablo, veclev, tol=1e-7):
+    for i in range(nbloc):
+        w1 = scorcol[indicablo == veclev[i]]
+        w2 = np.sqrt(np.sum(w1 * w1))
+        if w2 > tol:
+            w1 = w1 / w2
+        scorcol[indicablo == veclev[i]] = w1
+    return scorcol
+
+
+def recalculer(tab, scorcol, nbloc, indicablo, veclev):
+    for k in range(nbloc):
+        soustabk = tab.loc[:, indicablo == veclev[k]]
+        uk = scorcol[indicablo == veclev[k]]
+        soustabk_hat = soustabk.apply(lambda x: np.sum(x * uk) * uk, axis=1)
+        soustabk = soustabk - soustabk_hat
+        tab.loc[:, indicablo == veclev[k]] = soustabk
+    return tab
+
+
+def sepan(X, nf=2):
+    if X.get('class') != "ktab":
+        raise ValueError("Expected object of class 'ktab'")
+
+    lw = X['row_weight']
+    cw = X['column_weight']
+    blo = X['blocks']
+    ntab = len(blo)
+    tab = X[0]
+    j1 = 0
+    j2 = blo[0]
+    auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
+
+    if auxi['factor_numbers'] < nf:
+        auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
+    Eig = auxi['eigenvalues']
+    Co = auxi['ColumnCoordinates']
+    Li = auxi['RowCoordinates']
+    C1 = auxi['NormalizedScores']
+    L1 = auxi['ComponentScores']
+    Li.index = [f'{index}.{j1}' for index in Li.index]
+    L1.index = [f'{index}.{j1}' for index in L1.index]
+    Co.index = [f'{index}.{j1}' for index in Co.index]
+    C1.index = [f'{index}.{j1}' for index in C1.index]
+    rank = auxi['rank']
+
+    for i in range(1, ntab):
+        j1 = j2
+        j2 = j2 + blo[i]
+        tab = X[i]
+        auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
+        Eig = Eig + auxi['eigenvalues']
+        auxi['RowCoordinates'].index = [f'{index}.{i}' for index in auxi['RowCoordinates'].index]
+        auxi['ComponentScores'].index = [f'{index}.{i}' for index in auxi['ComponentScores'].index]
+        auxi['ColumnCoordinates'].index = [f'{index}.{i}' for index in auxi['ColumnCoordinates'].index]
+        auxi['NormalizedScores'].index = [f'{index}.{i}' for index in auxi['NormalizedScores'].index]
+
+        if auxi['factor_numbers'] < nf:
+            auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
+        Co = pd.concat([Co, auxi['ColumnCoordinates']], axis=0)
+        Li = pd.concat([Li, auxi['RowCoordinates']], axis=0)
+        C1 = pd.concat([C1, auxi['NormalizedScores']], axis=0)
+        L1 = pd.concat([L1, auxi['ComponentScores']], axis=0)
+        rank = rank + auxi['rank']
+
+    res = {}
+    res['Li'] = Li
+    res['L1'] = L1
+    res['Co'] = Co
+    res['C1'] = C1
+    res['Eig'] = Eig
+    res['TL'] = X['TL']
+    res['TC'] = X['TC']
+    res['T4'] = X['T4']
+    res['blo'] = blo
+    res['rank'] = rank
+    res['tab.names'] = list(X.keys())[:ntab]
+    res['call'] = 'sepan'
+    res['class'] = ["sepan", "list"]
+    return res
+
+
+def ktab_util_names(x):
+    w = list(x['data'].keys())
+    w1 = [f"{i}.{j}" for i, j in zip(w, x['TL'][0])]
+
+    w = list(x['data'][w[0]].keys())
+    if len(w) != len(set(w)):
+        w = [f"{i}.{j}" for i, j in zip(w, x['TC'][0])]
+    w2 = w
+
+    w = x['tab.names']
+    l0 = len(w)
+    w3 = [f"{i}.{j}" for i in w for j in range(1, 5)]
+
+    if 'kcoinertia' not in x['class']:
+        return {'row': w1, 'col': w2, 'tab': w3}
+
+    w4 = [f"{i}.{j}" for i, count in zip(x['tab.names'], x['supblo']) for j in x['supX'][:count]]
+
+    return {'row': w1, 'col': w2, 'tab': w3, 'Trow': w4}
+
+
+def mcoa(X, option=None, scannf=True, nf=3, tol=1e-07):
+    if option is None:
+        option = ["inertia", "lambda1", "uniform", "internal"]
+    if X.get('class') != "ktab":
+        raise ValueError("Expected object of class 'ktab'")
+    option = option[0]
+    if option == "internal":
+        if X.get('tabw') is None:
+            print("Internal weights not found: uniform weights are used")
+            option = "uniform"
+    lw = X['lw']
+    nlig = len(lw)
+    cw = X['cw']
+    ncol = len(cw)
+    nbloc = len(X['blo'])
+    indicablo = X['TC'][0]
+    veclev = list(set(X['TC'][0]))
+    Xsepan = sepan(X, nf=4)  # Assuming sepan is a function you've defined
+    rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
+
+    tabw = []
+    auxinames = ktab_util_names(X)  # Assuming ktab_util_names is a function you've defined
+    if option == "lambda1":
+        tabw = [1 / Xsepan["Eig"][rank_fac[i - 1]][0] for i in range(1, nbloc + 1)]
+    elif option == "inertia":
+        tabw = [1 / sum(Xsepan["Eig"][rank_fac[i - 1]]) for i in range(1, nbloc + 1)]
+    elif option == "uniform":
+        tabw = [1] * nbloc
+    elif option == "internal":
+        tabw = X['tabw']
+    else:
+        raise ValueError("Unknown option")
+
+    for i in range(nbloc):
+        X[i] = [x * np.sqrt(tabw[i]) for x in X[i]]
+
+    Xsepan = sepan(X, nf=4)  # Recalculate sepan with the updated X
+
+    # Line 37. Must be checked
