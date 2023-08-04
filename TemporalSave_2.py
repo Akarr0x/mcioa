@@ -60,6 +60,8 @@ def dudi_nsc(df, nf=2):
     row_w = df.sum(axis=1) / N
     col_w = df.sum(axis=0) / N
 
+    df = df/N
+
     # Transpose if more rows than columns
     transpose = False
     if df.shape[1] > df.shape[0]:
@@ -67,9 +69,9 @@ def dudi_nsc(df, nf=2):
         df = df.T
         col, row_w, col_w = df.shape[1], col_w, row_w  # Swap row and column weights
 
-    df = df.T.apply(lambda x: col_w if x.sum() == 0 else x / x.sum()).T
+    df = df.T.apply(lambda x: col_w if x.sum() == 0 else x / x.sum()).T #todo check if it's possible to just work on the column to avoid double transpose
     df = df.subtract(col_w, axis=1)
-    df *= col
+    # df *= col
 
     X = as_dudi(df, np.ones(col) / col, row_w, nf)
     X['N'] = N
@@ -86,9 +88,9 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = N
         raise ValueError("Weights dimensions must match DataFrame dimensions.")
     if len(row_w) != lig:
         raise ValueError("Weights dimensions must match DataFrame dimensions.")
-    if any(col_w < 0):
+    if any(np.array(col_w) < 0):
         raise ValueError("Weights must be non-negative.")
-    if any(row_w < 0):
+    if any(np.array(row_w) < 0):
         raise ValueError("Weights must be non-negative.")
 
     transpose = False
@@ -105,7 +107,7 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = N
     else:
         eigen_matrix = np.dot(df, df.T)
 
-    eig_values, eig_vectors = eigh(eigen_matrix)
+    eig_values, eig_vectors = eigh(eigen_matrix) #TODO check if SVD is faster
     eig_values = eig_values[::-1]
 
     rank = sum((eig_values / eig_values[0]) > tol)
@@ -127,11 +129,11 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = N
         factor_scores = df_ori.multiply(res['column_weight'], axis=1)
         factor_scores = pd.DataFrame(factor_scores.values @ component_scores)  # Matrix multiplication and conversion to DataFrame
 
-        res['component_scores'] = pd.DataFrame(component_scores, columns=[f'CS{i + 1}' for i in range(nf)])
+        res['component_scores'] = pd.DataFrame(component_scores, columns=[f'CS{i + 1}' for i in range(nf)]) # principal axes (A)
         res['factor_scores'] = factor_scores
-        res['factor_scores'].columns = [f'Axis{i + 1}' for i in range(nf)]
-        res['principal_coordinates'] = res['component_scores'].multiply(dval[::-1])
-        res['row_coordinates'] = res['factor_scores'].div(dval[::-1])
+        res['factor_scores'].columns = [f'Axis{i + 1}' for i in range(nf)] # row scores (L)
+        res['principal_coordinates'] = res['component_scores'].multiply(dval[::-1]) # This is the column score (C)
+        res['row_coordinates'] = res['factor_scores'].div(dval[::-1]) # This is the principal components (K)
     else:
         row_w_sqrt_rec = 1 / np.sqrt(row_w)
         row_coordinates = eig_vectors[:, -nf:] * row_w_sqrt_rec.to_numpy().reshape(-1, 1)
@@ -410,17 +412,17 @@ def recalculate(tab, scorcol, nbloc, indicablo, veclev):
     return tab
 
 
-def sepan(X, nf=2):
-    if X.get('class') != "ktab":
+def sepan(data, nf=2):
+    if data.get('class') != "ktab":
         raise ValueError("Expected object of class 'ktab'")
 
-    lw = X['row_weight']
-    cw = X['column_weight']
-    blo = X['blocks']
+    lw = data['row_weight']
+    cw = data['column_weight']
+    blo = data['blocks']
     ntab = len(blo)
     j1 = 0
-    j2 = blo[0]
-    auxi = as_dudi(X[0], cw[j1:j2], lw, nf=nf, scannf=False, type = "sepan")
+    j2 = list(blo.values())[0]
+    auxi = as_dudi(data[0], col_w = cw[j1:j2], row_w = lw, nf=nf, scannf=False, type = "sepan")
 
     if auxi['factor_numbers'] < nf:
         auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
@@ -439,7 +441,7 @@ def sepan(X, nf=2):
     for i in range(1, ntab):
         j1 = j2
         j2 = j2 + blo[i]
-        tab = X[i]
+        tab = data[i]
         auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
         Eig = Eig + auxi['eigenvalues']
         auxi['row_coordinates'].index = [f'{index}.{i}' for index in auxi['row_coordinates'].index]
@@ -461,12 +463,12 @@ def sepan(X, nf=2):
     res['principal_coordinates'] = Co
     res['factor_scores'] = C1
     res['eigenvalues'] = Eig
-    res['TL'] = X['TL']
-    res['TC'] = X['TC']
-    res['T4'] = X['T4']
+    res['TL'] = data['TL']
+    res['TC'] = data['TC']
+    res['T4'] = data['T4']
     res['blocks'] = blo
     res['rank'] = rank
-    res['tab_names'] = list(X.keys())[:ntab]
+    res['tab_names'] = list(data.keys())[:ntab]
     res['class'] = ["sepan", "list"]
 
     return res
@@ -529,8 +531,10 @@ def mcoa(X, option=None, scannf=True, nf=3, tol=1e-07):
     cw = X['column_weight']
     ncol = len(cw)
     nbloc = len(X['blocks'])
-    indicablo = X['TC'][0]
-    veclev = list(set(X['TC'][0]))
+    indicablo = X['TC']['T']
+    veclev = list(set(X['TC']['T']))
+
+
     Xsepan = sepan(X, nf=4)
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
 
