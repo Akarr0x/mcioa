@@ -11,7 +11,7 @@ def get_data(dataset):
     Converts input data into a pandas DataFrame if possible.
 
     Parameters:
-    - dataset (np.ndarray or pd.DataFrame): The input data.
+    - dataset (list, np.ndarray or pd.DataFrame): The input data.
 
     Returns:
     - pd.DataFrame: The data in DataFrame format.
@@ -19,31 +19,42 @@ def get_data(dataset):
     Raises:
     - ValueError: If dataset is a DataFrame containing non-numeric columns.
     """
-    if isinstance(dataset, np.ndarray) and np.isrealobj(dataset):
+    if isinstance(dataset, list):
+        for i, data in enumerate(dataset):
+            if not isinstance(data, pd.DataFrame):
+                raise ValueError(f"Item at index {i} is not a pandas DataFrame.")
+
+    elif isinstance(dataset, np.ndarray) and np.isrealobj(dataset):
         dataset = pd.DataFrame(dataset)
 
-    if isinstance(dataset, pd.DataFrame):
+    elif isinstance(dataset, pd.DataFrame):
         numeric_df = dataset.select_dtypes(include=[np.number])
         if dataset.shape[1] != numeric_df.shape[1]:
-            print("Array data was found to be a DataFrame but contains non-numeric columns.")
-            exit(1)
-    return dataset
+            raise ValueError("Array data was found to be a DataFrame but contains non-numeric columns.")
 
+    else:
+        raise ValueError("Input type not supported.")
+
+    return dataset
 
 def Array2Ade4(dataset, pos=False, trans=False):
     """
     Processes and transforms the dataset.
 
     Parameters:
-    - dataset (np.ndarray or pd.DataFrame): The input data.
+    - dataset (list of pd.DataFrame): The input data.
     - pos (bool): If True, all negative values in the dataset are made positive.
     - trans (bool): If True, transpose the dataset.
 
     Returns:
-    - pd.DataFrame: The processed data.
+    - list of pd.DataFrame: The processed data.
     """
-    # Ensure the dataset is a DataFrame
+    # Ensure the dataset items are DataFrames
     dataset = get_data(dataset)
+
+    # Check if dataset is a single DataFrame, if so, convert it to a list of one dataframe
+    if isinstance(dataset, pd.DataFrame):
+        dataset = [dataset]
 
     for i in range(len(dataset)):
         # Check for NA values
@@ -60,14 +71,8 @@ def Array2Ade4(dataset, pos=False, trans=False):
         if trans:
             dataset[i] = dataset[i].T
 
-    if not isinstance(dataset, pd.DataFrame):
-        print("Problems transposing the dataset")
-        exit(1)
-
     return dataset
 
-
-from scipy.linalg import svd
 
 
 def dudi_nsc(df, nf=2):
@@ -197,13 +202,13 @@ def rv(m1, m2):
 
 
 def pairwise_rv(dataset):
-    # Assuming the rv function is defined elsewhere or above this function
 
+    dataset_names = list(dataset.keys())
     n = len(dataset)  # Number of datasets
 
     # For each combination, call the rv function with the 'weighted_table' of the corresponding datasets.
     # Now we just index the dataset list directly, without using keys.
-    RV = [rv(dataset[i]['weighted_table'].values, dataset[j]['weighted_table'].values)
+    RV = [rv(dataset[dataset_names[i]]['weighted_table'].values, dataset[dataset_names[j]]['weighted_table'].values)
           for i, j in itertools.combinations(range(n), 2)]
 
     m = np.ones((n, n))
