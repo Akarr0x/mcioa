@@ -7,39 +7,63 @@ from scipy.linalg import eigh
 
 
 def get_data(dataset):
-    if isinstance(dataset, np.ndarray):
-        if np.isrealobj(dataset):
-            dataset = pd.DataFrame(dataset)
+    """
+    Converts input data into a pandas DataFrame if possible.
+
+    Parameters:
+    - dataset (np.ndarray or pd.DataFrame): The input data.
+
+    Returns:
+    - pd.DataFrame: The data in DataFrame format.
+
+    Raises:
+    - ValueError: If dataset is a DataFrame containing non-numeric columns.
+    """
+    if isinstance(dataset, np.ndarray) and np.isrealobj(dataset):
+        dataset = pd.DataFrame(dataset)
 
     if isinstance(dataset, pd.DataFrame):
         numeric_df = dataset.select_dtypes(include=[np.number])
         if dataset.shape[1] != numeric_df.shape[1]:
-            print("Array data was found to be a data.frame, but contains non-numeric columns.")
+            print("Array data was found to be a DataFrame but contains non-numeric columns.")
             exit(1)
     return dataset
 
 
 def Array2Ade4(dataset, pos=False, trans=False):
-    if not (isinstance(dataset, pd.DataFrame)):
-        dataset = get_data(dataset)  # This in case it is not a dataframe TODO think of other classes and add those
+    """
+    Processes and transforms the dataset.
+
+    Parameters:
+    - dataset (np.ndarray or pd.DataFrame): The input data.
+    - pos (bool): If True, all negative values in the dataset are made positive.
+    - trans (bool): If True, transpose the dataset.
+
+    Returns:
+    - pd.DataFrame: The processed data.
+    """
+    # Ensure the dataset is a DataFrame
+    dataset = get_data(dataset)
 
     for i in range(len(dataset)):
+        # Check for NA values
         if dataset[i].isnull().values.any():
-            print(
-                "Array data must not contain NA values. Use impute.knn in library(impute), KNNimpute from Troyanskaya et al., 2001 or LSimpute from Bo et al., 2004 to impute missing values\n")
+            print("Array data must not contain NA values.")
             exit(1)
 
-    if pos:
-        for i in range(len(dataset)):
-            if dataset[i].values.any() < 0:
-                num = round(dataset[i].values.min()) - 1
-                dataset[i] += abs(num)
-    if trans:
-        for i in range(len(dataset)):
+        # Make negative values positive if 'pos' is True
+        if pos and dataset[i].values.any() < 0:
+            num = round(dataset[i].values.min()) - 1
+            dataset[i] += abs(num)
+
+        # Transpose the dataset if 'trans' is True
+        if trans:
             dataset[i] = dataset[i].T
-        if not (isinstance(dataset, pd.DataFrame)):
-            print("Problems transposing the dataset")
-            exit(1)
+
+    if not isinstance(dataset, pd.DataFrame):
+        print("Problems transposing the dataset")
+        exit(1)
+
     return dataset
 
 
@@ -47,20 +71,29 @@ from scipy.linalg import svd
 
 
 def dudi_nsc(df, nf=2):
+    """
+    Performs Non-Symmetric Correspondence Analysis on the data.
+
+    Parameters:
+    - df (pd.DataFrame or np.ndarray): The input data.
+    - nf (int): The number of factors.
+
+    Returns:
+    - dict: A dictionary containing results of the analysis.
+    """
     df = pd.DataFrame(df)
     col = df.shape[1]
 
     if (df.values < 0).any():
-        raise ValueError("negative entries in table")
+        raise ValueError("Negative entries in table")
 
     N = df.values.sum()
     if N == 0:
-        raise ValueError("all frequencies are zero")
+        raise ValueError("All frequencies are zero")
 
     row_w = df.sum(axis=1) / N
     col_w = df.sum(axis=0) / N
-
-    df = df/N
+    df /= N
 
     # Transpose if more rows than columns
     transpose = False
@@ -69,7 +102,8 @@ def dudi_nsc(df, nf=2):
         df = df.T
         col, row_w, col_w = df.shape[1], col_w, row_w  # Swap row and column weights
 
-    df = df.T.apply(lambda x: col_w if x.sum() == 0 else x / x.sum()).T #todo check if it's possible to just work on the column to avoid double transpose
+    # Normalize and center data
+    df = df.T.apply(lambda x: col_w if x.sum() == 0 else x / x.sum()).T
     df = df.subtract(col_w, axis=1)
     df *= col
 
@@ -77,6 +111,7 @@ def dudi_nsc(df, nf=2):
     X['N'] = N
 
     return X
+
 
 
 def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = None):
@@ -629,45 +664,76 @@ def sepan(data, nf=2):
 
 
 def ktab_util_names(x):
-    w = list(x['data'].keys())
-    w1 = [f"{i}.{j}" for i, j in zip(w, x['TL'][0])]
+    """
+    Generates utility names for ktab objects.
 
-    w = list(x['data'][w[0]].keys())
-    if len(w) != len(set(w)):
-        w = [f"{i}.{j}" for i, j in zip(w, x['TC'][0])]
-    w2 = w
+    Parameters:
+    - x (dict): The ktab object with keys 'data', 'TL', 'TC', 'tab.names', and 'class'.
 
-    w = x['tab.names']
-    l0 = len(w)
-    w3 = [f"{element}.{j}" for element in w for j in range(1, l0+1)]
+    Returns:
+    - dict: A dictionary containing the row, column, and tab utility names. If 'kcoinertia' is in x['class'],
+            an additional 'Trow' key-value pair is returned.
+    """
+    # Generate row names
+    primary_keys = list(x['data'].keys())
+    row_names = [f"{i}.{j}" for i, j in zip(primary_keys, x['TL'][0])]
 
+    # Generate column names
+    secondary_keys = list(x['data'][primary_keys[0]].keys())
+    if len(secondary_keys) != len(set(secondary_keys)):
+        secondary_keys = [f"{i}.{j}" for i, j in zip(secondary_keys, x['TC'][0])]
+    col_names = secondary_keys
+
+    # Generate tab names
+    l0 = len(x['tab.names'])
+    tab_names = [f"{element}.{j}" for element in x['tab.names'] for j in range(1, l0 + 1)]
+
+    # Check for 'kcoinertia' class
     if 'kcoinertia' not in x['class']:
-        return {'row': w1, 'col': w2, 'tab': w3}
+        return {'row': row_names, 'col': col_names, 'tab': tab_names}
 
-    w4 = [f"{i}.{j}" for i, count in zip(x['tab.names'], x['supblo']) for j in x['supX'][:count]] #todo: supblo and supx not defined yet
+    # For 'kcoinertia' class, generate Trow names
+    # NOTE: Assumes 'supblo' and 'supX' will be defined when needed
+    trow_names = [f"{i}.{j}" for i, count in zip(x['tab.names'], x['supblo']) for j in x['supX'][:count]]
 
-    return {'row': w1, 'col': w2, 'tab': w3, 'Trow': w4}
+    return {'row': row_names, 'col': col_names, 'tab': tab_names, 'Trow': trow_names}
+
 
 def tab_names(x, value):
-    # Check if x has the required attributes for a 'ktab' object
+    """
+    Assign or modify the 'tab.names' attribute of a 'ktab' object.
+
+    Parameters:
+    - x (dict): The ktab object which should have a 'blocks' key.
+    - value (list): The list of tab names to assign.
+
+    Returns:
+    - dict: The updated ktab object with the new 'tab.names' attribute.
+
+    Raises:
+    - ValueError: If x is not a valid 'ktab' object, if the provided tab names length is invalid,
+                  or if duplicate tab names are provided.
+    """
+    # Validate input
     if not hasattr(x, 'blocks'):
-        raise ValueError("to be used with 'ktab' object")
+        raise ValueError("Function should be used with a 'ktab' object.")
 
     ntab = len(x['blocks'])
-    old = x['tab.names'][:ntab] if 'tab.names' in x else None
+    old_names = x['tab.names'][:ntab] if 'tab.names' in x else None
 
-    if old is not None and len(value) != len(old):
-        raise ValueError("invalid tab.names length")
+    # Check the consistency of the new and old tab names
+    if old_names is not None and len(value) != len(old_names):
+        raise ValueError("Invalid tab.names length.")
 
+    # Ensure no duplicate tab names
     value = [str(v) for v in value]
-
     if len(set(value)) != len(value):
-        raise ValueError("duplicate tab.names are not allowed")
+        raise ValueError("Duplicate tab.names are not allowed.")
 
+    # Assign new tab names
     x['tab.names'] = value[:ntab]
 
     return x
-
 
 
 def mcoa(X, option=None, nf=3, tol=1e-07):
