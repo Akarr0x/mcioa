@@ -673,10 +673,10 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         compogene.append(normalized_u)  # Append to the list of compogene
 
         # Extract the first column of vt (v transposed in SVD), then normalize by the custom function normalizer_per_block
-        normalized_v = normalize_per_block(vt[0, :])
+        normalized_v = normalize_per_block(vt[0, :], nbloc, indicablo, veclev)
 
         # Re-calculate tab using the custom function recalculate
-        tab = recalculate(tab, normalized_v)
+        tab = recalculate(tab, normalized_v, nbloc, indicablo, veclev)
 
         # Normalize normalized_v by the square root of cw (column_weights) and append to the list of uknorme
         normalized_v /= np.sqrt(cw)
@@ -686,7 +686,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         singular_value = s[0]
         valsing = valsing if valsing is None else np.concatenate([valsing, [singular_value]])
 
-        # Squaring the valsing to get pseudo eigenvalues
+    # Squaring the valsing to get pseudo eigenvalues
     pseudo_eigenvalues = valsing ** 2
 
     # Ensure nf is at least 2
@@ -727,14 +727,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     # Initialize matrices for further processing
     w = np.zeros((nlig * nbloc, nf))
     covar = np.zeros((nbloc, nf))
-    i1 = 0
     i2 = 0
-
-    # Initialize variables
-    i1 = 0
-    i2 = 0
-    w = np.zeros((nlig * nbloc, nfprovi))
-    covar = np.zeros((nbloc, nfprovi))
 
     # Iterate over blocks
     for k in range(nbloc):
@@ -758,16 +751,12 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 
     # Convert covar to DataFrame and square it, then store in acom
     covar_df = pd.DataFrame(covar)
-    covar_df.index = tab_names(X)  # Assuming tab_names is a function that returns the appropriate row names
+    covar_df.index = tab_names(X) #todo: check value
     covar_df.columns = [f"cov2{str(i + 1)}" for i in range(nfprovi)]
     acom['cov2'] = covar_df ** 2
 
-    # Reset i1 and i2
-    i1 = 0
-    i2 = 0
     # Initialize w and indices
     w = np.zeros((nlig * nbloc, nfprovi))
-    i1 = 0
     i2 = 0
 
     # Iterate over blocks to adjust w based on Tli and sqrt of lw
@@ -786,7 +775,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 
     # Reset variables
     w = np.zeros((ncol, nfprovi))
-    i1 = 0
     i2 = 0
 
     # Iterate over blocks to update w based on SynVar and lw
@@ -806,7 +794,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     # Reset variables and initialize var.names
     var_names = []
     w = np.zeros((nbloc * 4, nfprovi))
-    i1 = 0
     i2 = 0
 
     # Iterate over blocks to update w and var.names based on axis and Xsepan
