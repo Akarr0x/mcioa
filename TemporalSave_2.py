@@ -162,27 +162,24 @@ def rv(m1, m2):
 
 
 def pairwise_rv(dataset):
-    # Define an internal function, rv, which calculates the RV coefficient between two datasets.
+    # Assuming the rv function is defined elsewhere or above this function
 
-    # Get the number of datasets in dataset
-    n = len(dataset)
-    # Generate all combinations of 2 from the dataset names
+    n = len(dataset)  # Number of datasets
+
     # For each combination, call the rv function with the 'weighted_table' of the corresponding datasets.
-    # Store the resulting RV coefficients in RV.
-    RV = [rv(dataset[name1]['weighted_table'].values, dataset[name2]['weighted_table'].values)
-          for name1, name2 in itertools.combinations(dataset.keys(), 2)]
+    # Now we just index the dataset list directly, without using keys.
+    RV = [rv(dataset[i]['weighted_table'].values, dataset[j]['weighted_table'].values)
+          for i, j in itertools.combinations(range(n), 2)]
 
-    # Create a nxn matrix filled with 1s
     m = np.ones((n, n))
-    # Fill the lower triangle of m with the RV coefficients from RV
     m[np.tril_indices(n, -1)] = RV
-    # Mirror the lower triangle to the upper triangle of m to make m symmetric
     m[np.triu_indices(n, 1)] = RV
 
-    # Convert the numpy array m to a pandas DataFrame for easier manipulation and pretty printing
     m = pd.DataFrame(m)
-    # Assign the names of the datasets as the row and column names of m
-    m.columns = m.index = list(dataset.keys())
+    # If you have names/labels for each dictionary in the dataset list, you can assign them here.
+    # Otherwise, this step can be omitted.
+    # m.columns = m.index = list_of_names
+
     return m
 
 
@@ -340,31 +337,85 @@ def compile_tables(objects, rownames=None, colnames=None, tablenames=None):
     return compiled_tables
 
 
+def scalewt(df, wt=None, center=True, scale=True):
+    if wt is None:
+        wt = np.repeat(1 / df.shape[0], df.shape[0])
+
+    mean_df = None
+    if center:
+        mean_df = np.average(df, axis=0, weights=wt)
+        df = df - mean_df
+
+    var_df = None
+    if scale:
+        f = lambda x, w: np.sum(w * x ** 2) / np.sum(w)
+        var_df = np.apply_along_axis(f, axis=0, arr=df, w=wt)
+        temp = var_df < 1e-14
+        if np.any(temp):
+            # In Python, we generally raise a warning using the warnings module
+            import warnings
+            warnings.warn("Variables with null variance not standardized.")
+            var_df[temp] = 1
+        var_df = np.sqrt(var_df)
+        df = df / var_df
+
+    attributes = {}
+    if mean_df is not None:
+        attributes['scaled:center'] = mean_df
+    if var_df is not None:
+        attributes['scaled:scale'] = var_df
+
+    return df, attributes
+
 def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
+    """
+    Performs multiple co-inertia analysis on a given set of datasets.
+
+    Parameters:
+    - dataset (list): List of datasets (pandas DataFrames) to analyze.
+    - nf (int, default=2): Number of factors.
+    - scan (bool, default=False): [unused in the provided function]
+    - nsc (bool, default=True): Flag to decide if Non-Symmetric Correspondence Analysis is performed.
+    - svd (bool, default=True): [unused in the provided function]
+
+    Returns:
+    - mciares (dict): Results containing mcoa and coa analyses.
+    """
+
+    # Check if all items in dataset are pandas DataFrames
     for i, data in enumerate(dataset):
         if not isinstance(data, pd.DataFrame):
             print(f"Item at index {i} is not a pandas DataFrame.")
             return False
+
+    # Ensure no feature in the datasets express in all observations
     for i, df in enumerate(dataset):
         minn = min(df.min())
         ind = df.apply(lambda x: np.all(x == minn), axis=1)
         if any(ind):
             print("Some features in the datasets do not express in all observation, remove them")
             exit(1)
+
+    # Ensure the number of individuals is consistent across data frames
     total_columns = [df.shape[1] for df in dataset]
-    datasets_list = [np.array(df) for df in dataset]
     if len(set(total_columns)) != 1:
-        print("Nonequal number of individuals across data frame")
+        print("Non-equal number of individuals across data frames")
         exit(1)
+
+    # Check for NA values in the datasets
     for i, data in enumerate(dataset):
         if data.isnull().values.any():
             print("There are NA values")
             exit(1)
+
+    # Convert datasets to Ade4 format and perform Non-Symmetric Correspondence Analysis
     if nsc:
         dataset = Array2Ade4(dataset, pos=True)
 
         # Perform Non-Symmetric Correspondence Analysis on each dataset
         nsca_results = {f'dataset_{i}': dudi_nsc(df, nf=nf) for i, df in enumerate(dataset)}
+
+        # Store transformed results
         nsca_results_t = nsca_results
 
         # Perform t_dudi on weighted_table of each nsca_result
@@ -373,10 +424,29 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
 
         # Calculate the pairwise RV coefficients
         RV = pairwise_rv(nsca_results)
+
+        # Compile tables for analysis
         nsca_results_list = list(nsca_results.values())
         ktcoa = compile_tables(nsca_results_list)
 
-        # mcoin  = try(mcoa2(X = ktcoa, nf = cia.nf, scannf = FALSE), silent=TRUE)
+        # Perform MCoA
+        mcoin = mcoa(X=ktcoa, nf=nf, tol=1e-07)
+
+        # Scale the results
+        tab, attributes = scalewt(mcoin['Tco'], ktcoa['cw'], center=False, scale=True)
+        col_names = [f'Axis{i + 1}' for i in range(tab.shape[1])]
+        tab.columns = col_names
+
+        # Assign relevant values to mcoin
+        mcoin['Tlw'] = ktcoa['lw']
+        mcoin['Tcw'] = ktcoa['cw']
+        mcoin['blo'] = ktcoa['blo']
+        mcoin['Tc1'] = tab
+        mcoin['RV'] = RV
+
+        # Return results
+        mciares = {'mcoa': mcoin, 'coa': nsca_results_list}
+        return mciares
 
 
 def complete_dudi(dudi, nf1, nf2):
