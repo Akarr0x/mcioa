@@ -630,24 +630,24 @@ def sepan(data, nf=2):
     rank = auxi['rank']
 
     # Successive eigenanalysis for subsequent blocks
-    for i in range(1, ntab):
+    # Use an enumerator to get both the index (i) and the key from blo.keys()
+    for i, block_key in enumerate(blo.keys()):
         j1 = j2
-        j2 = j2 + blo[i]
-        tab = data[i]
+        j2 = j2 + blo[block_key]
+        tab = data[i]  # Here, we use i instead of the block_key
         auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
-        Eig.extend(auxi['eigenvalues'])
+        Eig = np.append(Eig, auxi['eigenvalues'])
 
         # Adjust index for current block and concatenate results
         for key, df in auxi.items():
             if key in ['row_coordinates', 'component_scores', 'principal_coordinates', 'factor_scores']:
-                df.index = [f'{index}.{i}' for index in df.index]
+                df.index = [f'{index}.{block_key}' for index in df.index]  # Use block_key here for renaming
                 locals()[key.split('_')[0]].append(df)
-
         # Extend factors if necessary
         if auxi['factor_numbers'] < nf:
             auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
 
-        rank.extend(auxi['rank'])
+        rank = np.append(rank, auxi['rank'])
 
     # Aggregate results
     res = {
@@ -751,6 +751,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         if X.get('tabw') is None:
             print("Internal weights not found: uniform weights are used")
             option = "uniform"
+
     lw = X['row_weight']
     nlig = len(lw)
     cw = X['column_weight']
