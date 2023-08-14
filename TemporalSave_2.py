@@ -664,11 +664,6 @@ def sepan(data, nf=2):
     Eig = np.array(Eig)
     rank = np.array(rank)
 
-    Co = pd.concat(Co, axis=0)
-    Li = pd.concat(Li, axis=0)
-    C1 = pd.concat(C1, axis=0)
-    L1 = pd.concat(L1, axis=0)
-
     res = {
         'row_coordinates': L1,
         'component_scores': C1,
