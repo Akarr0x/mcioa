@@ -159,8 +159,8 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = N
     res['eigenvalues'] = eig_values[:rank]
     res['rank'] = rank
     res['factor_numbers'] = nf
-    col_w[col_w == 0] = 1
-    row_w[row_w == 0] = 1
+    col_w = [1 if x == 0 else x for x in col_w]
+    row_w = [1 if x == 0 else x for x in row_w]
     dval = np.sqrt(res['eigenvalues'][:nf])
 
     if not transpose:
@@ -185,7 +185,7 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = N
 
     res['call'] = None
     if type is None:
-        res['class'] = 'dudi'
+        res['class'] = ['dudi']
     else:
         res['class'] = [type, "dudi"]
     return res
@@ -602,7 +602,6 @@ def sepan(data, nf=2):
     if data.get('class') != "ktab":
         raise ValueError("Expected object of class 'ktab'")
 
-    # Initialization
     lw = data['row_weight']
     cw = data['column_weight']
     blo = data['blocks']
@@ -610,51 +609,71 @@ def sepan(data, nf=2):
     j1 = 0
     j2 = list(blo.values())[0]
 
-    # Initial eigenanalysis for the first block
     auxi = as_dudi(data[0], col_w=cw[j1:j2], row_w=lw, nf=nf, scannf=False, type="sepan")
 
-    # Extend the factors if the number is less than specified
     if auxi['factor_numbers'] < nf:
         auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
 
-    # Extract initial results
-    Eig = auxi['eigenvalues']
-    Co, Li, C1, L1 = (auxi[key] for key in
-                      ['principal_coordinates', 'row_coordinates', 'component_scores', 'factor_scores'])
+    Eig = list(auxi['eigenvalues'])
+    Co = auxi['principal_coordinates']
+    Li = auxi['factor_scores']
+    C1 = auxi['component_scores']
+    L1 = auxi['row_coordinates']
 
-    # Adjust index to indicate block
+    rank = []
+    rank.append(auxi['rank'])
+
+    mapping = {
+        'principal_coordinates': 'Co',
+        'factor_scores': 'Li',
+        'component_scores': 'C1',
+        'row_coordinates': 'L1'
+    }
+
     for df in [Li, L1, Co, C1]:
         df.index = [f'{index}.{j1}' for index in df.index]
 
-    # Set rank from the first block
-    rank = auxi['rank']
-
-    # Successive eigenanalysis for subsequent blocks
-    # Use an enumerator to get both the index (i) and the key from blo.keys()
-    for i, block_key in enumerate(blo.keys()):
+    for i, block_key in enumerate(list(blo.keys())[1:], start=1):
         j1 = j2
         j2 = j2 + blo[block_key]
-        tab = data[i]  # Here, we use i instead of the block_key
+        tab = data[i]
         auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
-        Eig = np.append(Eig, auxi['eigenvalues'])
 
-        # Adjust index for current block and concatenate results
-        for key, df in auxi.items():
-            if key in ['row_coordinates', 'component_scores', 'principal_coordinates', 'factor_scores']:
-                df.index = [f'{index}.{block_key}' for index in df.index]  # Use block_key here for renaming
-                locals()[key.split('_')[0]].append(df)
-        # Extend factors if necessary
+        # Append values to the respective lists
+        Eig.extend(auxi['eigenvalues'].tolist())
+
+        for key, short_name in mapping.items():
+            auxi_df = auxi[key].copy()
+            auxi_df.index = [f'X{idx + 1}.{block_key}' for idx in range(len(auxi_df))]
+            if short_name == 'Co':
+                Co = pd.concat([Co, auxi_df])
+            elif short_name == 'Li':
+                Li = pd.concat([Li, auxi_df])
+            elif short_name == 'C1':
+                C1 = pd.concat([C1, auxi_df])
+            elif short_name == 'L1':
+                L1 = pd.concat([L1, auxi_df])
+
         if auxi['factor_numbers'] < nf:
             auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
 
-        rank = np.append(rank, auxi['rank'])
+        rank.append(auxi['rank'])
 
-    # Aggregate results
+
+    # Convert lists to desired data structures after the loop
+    Eig = np.array(Eig)
+    rank = np.array(rank)
+
+    Co = pd.concat(Co, axis=0)
+    Li = pd.concat(Li, axis=0)
+    C1 = pd.concat(C1, axis=0)
+    L1 = pd.concat(L1, axis=0)
+
     res = {
-        'row_coordinates': Li,
-        'component_scores': L1,
+        'row_coordinates': L1,
+        'component_scores': C1,
         'principal_coordinates': Co,
-        'factor_scores': C1,
+        'factor_scores': Li,
         'eigenvalues': Eig,
         'TL': data['TL'],
         'TC': data['TC'],
