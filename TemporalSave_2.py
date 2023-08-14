@@ -694,18 +694,36 @@ def ktab_util_names(x):
             an additional 'Trow' key-value pair is returned.
     """
     # Generate row names
-    primary_keys = list(x['data'].keys())
-    row_names = [f"{i}.{j}" for i, j in zip(primary_keys, x['TL'][0])]
+    w = x['row.names']
+    suffixes = [f"df{i + 1}" for i, t_val in enumerate(x['TL']['T'].unique())]
+    row_names = []
+
+    for idx, t_val in enumerate(x['TL']['T'].unique()):
+        subset = x['TL'][x['TL']['T'] == t_val]
+        row_names.extend([f"{l_val}.{suffixes[idx]}" for l_val in subset['L']])
 
     # Generate column names
-    secondary_keys = list(x['data'][primary_keys[0]].keys())
-    if len(secondary_keys) != len(set(secondary_keys)):
-        secondary_keys = [f"{i}.{j}" for i, j in zip(secondary_keys, x['TC'][0])]
-    col_names = secondary_keys
+    secondary_keys = x['col.names']
 
-    # Generate tab names
-    l0 = len(x['tab.names'])
-    tab_names = [f"{element}.{j}" for element in x['tab.names'] for j in range(1, l0 + 1)]
+    unique_suffixes = [f"{str(i)}" for i in set(x['TC']['T'])]
+
+    col_names = []
+    for sublist, suffix in zip(secondary_keys, unique_suffixes):
+        col_names.extend([f"{key}.{suffix}" for key in sublist])
+
+    print(col_names)
+
+    w = x['tab.names']
+    l0 = len(w)
+    tab_names = list()
+
+    # Repeat the entire array 'w' 4 times
+    #todo Check this with higher number of dataset
+    for i in range(len(w)):
+        for k in range(1, 5):
+            tab_names.append(f"{w[i]}.{k}")
+
+    print(tab_names)
 
     # Check for 'kcoinertia' class
     if 'kcoinertia' not in x['class']:
@@ -777,9 +795,11 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 
     Xsepan = sepan(X, nf=4)
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
-
     tabw = []
+
+
     auxinames = ktab_util_names(X)
+
     if option == "lambda1":
         tabw = [1 / Xsepan["eigenvalues"][rank_fac[i - 1]][0] for i in range(1, nbloc + 1)]
     elif option == "inertia":
