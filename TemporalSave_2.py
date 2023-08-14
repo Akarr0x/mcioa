@@ -7,60 +7,98 @@ from scipy.linalg import eigh
 
 
 def get_data(dataset):
-    if isinstance(dataset, np.ndarray):
-        if np.isrealobj(dataset):
-            dataset = pd.DataFrame(dataset)
+    """
+    Converts input data into a pandas DataFrame if possible.
 
-    if isinstance(dataset, pd.DataFrame):
+    Parameters:
+    - dataset (list, np.ndarray or pd.DataFrame): The input data.
+
+    Returns:
+    - pd.DataFrame: The data in DataFrame format.
+
+    Raises:
+    - ValueError: If dataset is a DataFrame containing non-numeric columns.
+    """
+    if isinstance(dataset, list):
+        for i, data in enumerate(dataset):
+            if not isinstance(data, pd.DataFrame):
+                raise ValueError(f"Item at index {i} is not a pandas DataFrame.")
+
+    elif isinstance(dataset, np.ndarray) and np.isrealobj(dataset):
+        dataset = pd.DataFrame(dataset)
+
+    elif isinstance(dataset, pd.DataFrame):
         numeric_df = dataset.select_dtypes(include=[np.number])
         if dataset.shape[1] != numeric_df.shape[1]:
-            print("Array data was found to be a data.frame, but contains non-numeric columns.")
-            exit(1)
-    return dataset
+            raise ValueError("Array data was found to be a DataFrame but contains non-numeric columns.")
 
+    else:
+        raise ValueError("Input type not supported.")
+
+    return dataset
 
 def Array2Ade4(dataset, pos=False, trans=False):
-    if not (isinstance(dataset, pd.DataFrame)):
-        dataset = get_data(dataset)  # This in case it is not a dataframe TODO think of other classes and add those
+    """
+    Processes and transforms the dataset.
+
+    Parameters:
+    - dataset (list of pd.DataFrame): The input data.
+    - pos (bool): If True, all negative values in the dataset are made positive.
+    - trans (bool): If True, transpose the dataset.
+
+    Returns:
+    - list of pd.DataFrame: The processed data.
+    """
+    # Ensure the dataset items are DataFrames
+    dataset = get_data(dataset)
+
+    # Check if dataset is a single DataFrame, if so, convert it to a list of one dataframe
+    if isinstance(dataset, pd.DataFrame):
+        dataset = [dataset]
 
     for i in range(len(dataset)):
+        # Check for NA values
         if dataset[i].isnull().values.any():
-            print(
-                "Array data must not contain NA values. Use impute.knn in library(impute), KNNimpute from Troyanskaya et al., 2001 or LSimpute from Bo et al., 2004 to impute missing values\n")
+            print("Array data must not contain NA values.")
             exit(1)
 
-    if pos:
-        for i in range(len(dataset)):
-            if dataset[i].values.any() < 0:
-                num = round(dataset[i].values.min()) - 1
-                dataset[i] += abs(num)
-    if trans:
-        for i in range(len(dataset)):
+        # Make negative values positive if 'pos' is True
+        if pos and dataset[i].values.any() < 0:
+            num = round(dataset[i].values.min()) - 1
+            dataset[i] += abs(num)
+
+        # Transpose the dataset if 'trans' is True
+        if trans:
             dataset[i] = dataset[i].T
-        if not (isinstance(dataset, pd.DataFrame)):
-            print("Problems transposing the dataset")
-            exit(1)
+
     return dataset
 
-
-from scipy.linalg import svd
 
 
 def dudi_nsc(df, nf=2):
+    """
+    Performs Non-Symmetric Correspondence Analysis on the data.
+
+    Parameters:
+    - df (pd.DataFrame or np.ndarray): The input data.
+    - nf (int): The number of factors.
+
+    Returns:
+    - dict: A dictionary containing results of the analysis.
+    """
     df = pd.DataFrame(df)
     col = df.shape[1]
 
     if (df.values < 0).any():
-        raise ValueError("negative entries in table")
+        raise ValueError("Negative entries in table")
 
     N = df.values.sum()
     if N == 0:
-        raise ValueError("all frequencies are zero")
+        raise ValueError("All frequencies are zero")
 
     row_w = df.sum(axis=1) / N
     col_w = df.sum(axis=0) / N
-
-    df = df/N
+    df /= N
 
     # Transpose if more rows than columns
     transpose = False
@@ -69,7 +107,8 @@ def dudi_nsc(df, nf=2):
         df = df.T
         col, row_w, col_w = df.shape[1], col_w, row_w  # Swap row and column weights
 
-    df = df.T.apply(lambda x: col_w if x.sum() == 0 else x / x.sum()).T #todo check if it's possible to just work on the column to avoid double transpose
+    # Normalize and center data
+    df = df.T.apply(lambda x: col_w if x.sum() == 0 else x / x.sum()).T
     df = df.subtract(col_w, axis=1)
     df *= col
 
@@ -77,6 +116,7 @@ def dudi_nsc(df, nf=2):
     X['N'] = N
 
     return X
+
 
 
 def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = None):
@@ -119,8 +159,8 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = N
     res['eigenvalues'] = eig_values[:rank]
     res['rank'] = rank
     res['factor_numbers'] = nf
-    col_w[col_w == 0] = 1
-    row_w[row_w == 0] = 1
+    col_w = [1 if x == 0 else x for x in col_w]
+    row_w = [1 if x == 0 else x for x in row_w]
     dval = np.sqrt(res['eigenvalues'][:nf])
 
     if not transpose:
@@ -145,7 +185,7 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = N
 
     res['call'] = None
     if type is None:
-        res['class'] = 'dudi'
+        res['class'] = ['dudi']
     else:
         res['class'] = [type, "dudi"]
     return res
@@ -162,27 +202,24 @@ def rv(m1, m2):
 
 
 def pairwise_rv(dataset):
-    # Define an internal function, rv, which calculates the RV coefficient between two datasets.
 
-    # Get the number of datasets in dataset
-    n = len(dataset)
-    # Generate all combinations of 2 from the dataset names
+    dataset_names = list(dataset.keys())
+    n = len(dataset)  # Number of datasets
+
     # For each combination, call the rv function with the 'weighted_table' of the corresponding datasets.
-    # Store the resulting RV coefficients in RV.
-    RV = [rv(dataset[name1]['weighted_table'].values, dataset[name2]['weighted_table'].values)
-          for name1, name2 in itertools.combinations(dataset.keys(), 2)]
+    # Now we just index the dataset list directly, without using keys.
+    RV = [rv(dataset[dataset_names[i]]['weighted_table'].values, dataset[dataset_names[j]]['weighted_table'].values)
+          for i, j in itertools.combinations(range(n), 2)]
 
-    # Create a nxn matrix filled with 1s
     m = np.ones((n, n))
-    # Fill the lower triangle of m with the RV coefficients from RV
     m[np.tril_indices(n, -1)] = RV
-    # Mirror the lower triangle to the upper triangle of m to make m symmetric
     m[np.triu_indices(n, 1)] = RV
 
-    # Convert the numpy array m to a pandas DataFrame for easier manipulation and pretty printing
     m = pd.DataFrame(m)
-    # Assign the names of the datasets as the row and column names of m
-    m.columns = m.index = list(dataset.keys())
+    # If you have names/labels for each dictionary in the dataset list, you can assign them here.
+    # Otherwise, this step can be omitted.
+    # m.columns = m.index = list_of_names
+
     return m
 
 
@@ -340,31 +377,85 @@ def compile_tables(objects, rownames=None, colnames=None, tablenames=None):
     return compiled_tables
 
 
+def scalewt(df, wt=None, center=True, scale=True):
+    if wt is None:
+        wt = np.repeat(1 / df.shape[0], df.shape[0])
+
+    mean_df = None
+    if center:
+        mean_df = np.average(df, axis=0, weights=wt)
+        df = df - mean_df
+
+    var_df = None
+    if scale:
+        f = lambda x, w: np.sum(w * x ** 2) / np.sum(w)
+        var_df = np.apply_along_axis(f, axis=0, arr=df, w=wt)
+        temp = var_df < 1e-14
+        if np.any(temp):
+            # In Python, we generally raise a warning using the warnings module
+            import warnings
+            warnings.warn("Variables with null variance not standardized.")
+            var_df[temp] = 1
+        var_df = np.sqrt(var_df)
+        df = df / var_df
+
+    attributes = {}
+    if mean_df is not None:
+        attributes['scaled:center'] = mean_df
+    if var_df is not None:
+        attributes['scaled:scale'] = var_df
+
+    return df, attributes
+
 def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
+    """
+    Performs multiple co-inertia analysis on a given set of datasets.
+
+    Parameters:
+    - dataset (list): List of datasets (pandas DataFrames) to analyze.
+    - nf (int, default=2): Number of factors.
+    - scan (bool, default=False): [unused in the provided function]
+    - nsc (bool, default=True): Flag to decide if Non-Symmetric Correspondence Analysis is performed.
+    - svd (bool, default=True): [unused in the provided function]
+
+    Returns:
+    - mciares (dict): Results containing mcoa and coa analyses.
+    """
+
+    # Check if all items in dataset are pandas DataFrames
     for i, data in enumerate(dataset):
         if not isinstance(data, pd.DataFrame):
             print(f"Item at index {i} is not a pandas DataFrame.")
             return False
+
+    # Ensure no feature in the datasets express in all observations
     for i, df in enumerate(dataset):
         minn = min(df.min())
         ind = df.apply(lambda x: np.all(x == minn), axis=1)
         if any(ind):
             print("Some features in the datasets do not express in all observation, remove them")
             exit(1)
+
+    # Ensure the number of individuals is consistent across data frames
     total_columns = [df.shape[1] for df in dataset]
-    datasets_list = [np.array(df) for df in dataset]
     if len(set(total_columns)) != 1:
-        print("Nonequal number of individuals across data frame")
+        print("Non-equal number of individuals across data frames")
         exit(1)
+
+    # Check for NA values in the datasets
     for i, data in enumerate(dataset):
         if data.isnull().values.any():
             print("There are NA values")
             exit(1)
+
+    # Convert datasets to Ade4 format and perform Non-Symmetric Correspondence Analysis
     if nsc:
         dataset = Array2Ade4(dataset, pos=True)
 
         # Perform Non-Symmetric Correspondence Analysis on each dataset
         nsca_results = {f'dataset_{i}': dudi_nsc(df, nf=nf) for i, df in enumerate(dataset)}
+
+        # Store transformed results
         nsca_results_t = nsca_results
 
         # Perform t_dudi on weighted_table of each nsca_result
@@ -373,10 +464,29 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
 
         # Calculate the pairwise RV coefficients
         RV = pairwise_rv(nsca_results)
+
+        # Compile tables for analysis
         nsca_results_list = list(nsca_results.values())
         ktcoa = compile_tables(nsca_results_list)
 
-        # mcoin  = try(mcoa2(X = ktcoa, nf = cia.nf, scannf = FALSE), silent=TRUE)
+        # Perform MCoA
+        mcoin = mcoa(X=ktcoa, nf=nf, tol=1e-07)
+
+        # Scale the results
+        tab, attributes = scalewt(mcoin['Tco'], ktcoa['cw'], center=False, scale=True)
+        col_names = [f'Axis{i + 1}' for i in range(tab.shape[1])]
+        tab.columns = col_names
+
+        # Assign relevant values to mcoin
+        mcoin['Tlw'] = ktcoa['lw']
+        mcoin['Tcw'] = ktcoa['cw']
+        mcoin['blo'] = ktcoa['blo']
+        mcoin['Tc1'] = tab
+        mcoin['RV'] = RV
+
+        # Return results
+        mciares = {'mcoa': mcoin, 'coa': nsca_results_list}
+        return mciares
 
 
 def complete_dudi(dudi, nf1, nf2):
@@ -492,7 +602,6 @@ def sepan(data, nf=2):
     if data.get('class') != "ktab":
         raise ValueError("Expected object of class 'ktab'")
 
-    # Initialization
     lw = data['row_weight']
     cw = data['column_weight']
     blo = data['blocks']
@@ -500,51 +609,66 @@ def sepan(data, nf=2):
     j1 = 0
     j2 = list(blo.values())[0]
 
-    # Initial eigenanalysis for the first block
     auxi = as_dudi(data[0], col_w=cw[j1:j2], row_w=lw, nf=nf, scannf=False, type="sepan")
 
-    # Extend the factors if the number is less than specified
     if auxi['factor_numbers'] < nf:
         auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
 
-    # Extract initial results
-    Eig = auxi['eigenvalues']
-    Co, Li, C1, L1 = (auxi[key] for key in
-                      ['principal_coordinates', 'row_coordinates', 'component_scores', 'factor_scores'])
+    Eig = list(auxi['eigenvalues'])
+    Co = auxi['principal_coordinates']
+    Li = auxi['factor_scores']
+    C1 = auxi['component_scores']
+    L1 = auxi['row_coordinates']
 
-    # Adjust index to indicate block
+    rank = []
+    rank.append(auxi['rank'])
+
+    mapping = {
+        'principal_coordinates': 'Co',
+        'factor_scores': 'Li',
+        'component_scores': 'C1',
+        'row_coordinates': 'L1'
+    }
+
     for df in [Li, L1, Co, C1]:
         df.index = [f'{index}.{j1}' for index in df.index]
 
-    # Set rank from the first block
-    rank = auxi['rank']
-
-    # Successive eigenanalysis for subsequent blocks
-    for i in range(1, ntab):
+    for i, block_key in enumerate(list(blo.keys())[1:], start=1):
         j1 = j2
-        j2 = j2 + blo[i]
+        j2 = j2 + blo[block_key]
         tab = data[i]
         auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
-        Eig.extend(auxi['eigenvalues'])
 
-        # Adjust index for current block and concatenate results
-        for key, df in auxi.items():
-            if key in ['row_coordinates', 'component_scores', 'principal_coordinates', 'factor_scores']:
-                df.index = [f'{index}.{i}' for index in df.index]
-                locals()[key.split('_')[0]].append(df)
+        # Append values to the respective lists
+        Eig.extend(auxi['eigenvalues'].tolist())
 
-        # Extend factors if necessary
+        for key, short_name in mapping.items():
+            auxi_df = auxi[key].copy()
+            auxi_df.index = [f'X{idx + 1}.{block_key}' for idx in range(len(auxi_df))]
+            if short_name == 'Co':
+                Co = pd.concat([Co, auxi_df])
+            elif short_name == 'Li':
+                Li = pd.concat([Li, auxi_df])
+            elif short_name == 'C1':
+                C1 = pd.concat([C1, auxi_df])
+            elif short_name == 'L1':
+                L1 = pd.concat([L1, auxi_df])
+
         if auxi['factor_numbers'] < nf:
             auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
 
-        rank.extend(auxi['rank'])
+        rank.append(auxi['rank'])
 
-    # Aggregate results
+
+    # Convert lists to desired data structures after the loop
+    Eig = np.array(Eig)
+    rank = np.array(rank)
+
     res = {
-        'row_coordinates': Li,
-        'component_scores': L1,
+        'row_coordinates': L1,
+        'component_scores': C1,
         'principal_coordinates': Co,
-        'factor_scores': C1,
+        'factor_scores': Li,
         'eigenvalues': Eig,
         'TL': data['TL'],
         'TC': data['TC'],
@@ -559,45 +683,94 @@ def sepan(data, nf=2):
 
 
 def ktab_util_names(x):
-    w = list(x['data'].keys())
-    w1 = [f"{i}.{j}" for i, j in zip(w, x['TL'][0])]
+    """
+    Generates utility names for ktab objects.
 
-    w = list(x['data'][w[0]].keys())
-    if len(w) != len(set(w)):
-        w = [f"{i}.{j}" for i, j in zip(w, x['TC'][0])]
-    w2 = w
+    Parameters:
+    - x (dict): The ktab object with keys 'data', 'TL', 'TC', 'tab.names', and 'class'.
+
+    Returns:
+    - dict: A dictionary containing the row, column, and tab utility names. If 'kcoinertia' is in x['class'],
+            an additional 'Trow' key-value pair is returned.
+    """
+    # Generate row names
+    w = x['row.names']
+    suffixes = [f"df{i + 1}" for i, t_val in enumerate(x['TL']['T'].unique())]
+    row_names = []
+
+    for idx, t_val in enumerate(x['TL']['T'].unique()):
+        subset = x['TL'][x['TL']['T'] == t_val]
+        row_names.extend([f"{l_val}.{suffixes[idx]}" for l_val in subset['L']])
+
+    # Generate column names
+    secondary_keys = x['col.names']
+
+    unique_suffixes = [f"{str(i)}" for i in set(x['TC']['T'])]
+
+    col_names = []
+    for sublist, suffix in zip(secondary_keys, unique_suffixes):
+        col_names.extend([f"{key}.{suffix}" for key in sublist])
+
+    print(col_names)
 
     w = x['tab.names']
     l0 = len(w)
-    w3 = [f"{element}.{j}" for element in w for j in range(1, l0+1)]
+    tab_names = list()
 
+    # Repeat the entire array 'w' 4 times
+    #todo Check this with higher number of dataset
+    for i in range(len(w)):
+        for k in range(1, 5):
+            tab_names.append(f"{w[i]}.{k}")
+
+    print(tab_names)
+
+    # Check for 'kcoinertia' class
     if 'kcoinertia' not in x['class']:
-        return {'row': w1, 'col': w2, 'tab': w3}
+        return {'row': row_names, 'col': col_names, 'tab': tab_names}
 
-    w4 = [f"{i}.{j}" for i, count in zip(x['tab.names'], x['supblo']) for j in x['supX'][:count]] #todo: supblo and supx not defined yet
+    # For 'kcoinertia' class, generate Trow names
+    # NOTE: Assumes 'supblo' and 'supX' will be defined when needed
+    trow_names = [f"{i}.{j}" for i, count in zip(x['tab.names'], x['supblo']) for j in x['supX'][:count]]
 
-    return {'row': w1, 'col': w2, 'tab': w3, 'Trow': w4}
+    return {'row': row_names, 'col': col_names, 'tab': tab_names, 'Trow': trow_names}
+
 
 def tab_names(x, value):
-    # Check if x has the required attributes for a 'ktab' object
+    """
+    Assign or modify the 'tab.names' attribute of a 'ktab' object.
+
+    Parameters:
+    - x (dict): The ktab object which should have a 'blocks' key.
+    - value (list): The list of tab names to assign.
+
+    Returns:
+    - dict: The updated ktab object with the new 'tab.names' attribute.
+
+    Raises:
+    - ValueError: If x is not a valid 'ktab' object, if the provided tab names length is invalid,
+                  or if duplicate tab names are provided.
+    """
+    # Validate input
     if not hasattr(x, 'blocks'):
-        raise ValueError("to be used with 'ktab' object")
+        raise ValueError("Function should be used with a 'ktab' object.")
 
     ntab = len(x['blocks'])
-    old = x['tab.names'][:ntab] if 'tab.names' in x else None
+    old_names = x['tab.names'][:ntab] if 'tab.names' in x else None
 
-    if old is not None and len(value) != len(old):
-        raise ValueError("invalid tab.names length")
+    # Check the consistency of the new and old tab names
+    if old_names is not None and len(value) != len(old_names):
+        raise ValueError("Invalid tab.names length.")
 
+    # Ensure no duplicate tab names
     value = [str(v) for v in value]
-
     if len(set(value)) != len(value):
-        raise ValueError("duplicate tab.names are not allowed")
+        raise ValueError("Duplicate tab.names are not allowed.")
 
+    # Assign new tab names
     x['tab.names'] = value[:ntab]
 
     return x
-
 
 
 def mcoa(X, option=None, nf=3, tol=1e-07):
@@ -610,6 +783,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         if X.get('tabw') is None:
             print("Internal weights not found: uniform weights are used")
             option = "uniform"
+
     lw = X['row_weight']
     nlig = len(lw)
     cw = X['column_weight']
@@ -622,12 +796,20 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     Xsepan = sepan(X, nf=4)
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
 
-    tabw = []
+
     auxinames = ktab_util_names(X)
+    sums = {}
+
     if option == "lambda1":
         tabw = [1 / Xsepan["eigenvalues"][rank_fac[i - 1]][0] for i in range(1, nbloc + 1)]
     elif option == "inertia":
-        tabw = [1 / sum(Xsepan["eigenvalues"][rank_fac[i - 1]]) for i in range(1, nbloc + 1)]
+        # Iterate over rank_fac and Xsepan['Eig'] simultaneously
+        for rank, value in zip(rank_fac, Xsepan['eigenvalues']):
+            # If rank is not in sums, initialize with value, otherwise accumulate
+            sums[rank] = sums.get(rank, 0) + value
+
+        # Create tabw by taking reciprocals of the accumulated sums
+        tabw = [1 / sums[i] for i in sorted(sums.keys())]
     elif option == "uniform":
         tabw = [1] * nbloc
     elif option == "internal":
@@ -636,9 +818,18 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         raise ValueError("Unknown option")
 
     for i in range(nbloc):
-        X[i] = [x * np.sqrt(tabw[i]) for x in X[i]]
+        X[i] = [X[i] * np.sqrt(tabw[i])]
+
+    for k in range(nbloc):
+        X[k] = pd.DataFrame(X[k][0])
 
     Xsepan = sepan(X, nf=4)  # Recalculate sepan with the updated X
+
+
+
+
+
+
 
     # Convert the first element of X to a DataFrame and assign it to tab
     tab = pd.DataFrame(X[0])
