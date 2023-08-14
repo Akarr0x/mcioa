@@ -795,15 +795,21 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 
     Xsepan = sepan(X, nf=4)
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
-    tabw = []
 
 
     auxinames = ktab_util_names(X)
+    sums = {}
 
     if option == "lambda1":
         tabw = [1 / Xsepan["eigenvalues"][rank_fac[i - 1]][0] for i in range(1, nbloc + 1)]
     elif option == "inertia":
-        tabw = [1 / sum(Xsepan["eigenvalues"][rank_fac[i - 1]]) for i in range(1, nbloc + 1)]
+        # Iterate over rank_fac and Xsepan['Eig'] simultaneously
+        for rank, value in zip(rank_fac, Xsepan['eigenvalues']):
+            # If rank is not in sums, initialize with value, otherwise accumulate
+            sums[rank] = sums.get(rank, 0) + value
+
+        # Create tabw by taking reciprocals of the accumulated sums
+        tabw = [1 / sums[i] for i in sorted(sums.keys())]
     elif option == "uniform":
         tabw = [1] * nbloc
     elif option == "internal":
@@ -812,9 +818,15 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         raise ValueError("Unknown option")
 
     for i in range(nbloc):
-        X[i] = [x * np.sqrt(tabw[i]) for x in X[i]]
+        X[i] = [X[i] * np.sqrt(tabw[i])]
 
     Xsepan = sepan(X, nf=4)  # Recalculate sepan with the updated X
+
+
+
+
+
+
 
     # Convert the first element of X to a DataFrame and assign it to tab
     tab = pd.DataFrame(X[0])
