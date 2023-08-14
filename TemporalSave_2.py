@@ -820,6 +820,9 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     for i in range(nbloc):
         X[i] = [X[i] * np.sqrt(tabw[i])]
 
+    for k in range(nbloc):
+        X[k] = pd.DataFrame(X[k][0])
+
     Xsepan = sepan(X, nf=4)  # Recalculate sepan with the updated X
 
 
