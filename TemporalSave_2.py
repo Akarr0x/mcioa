@@ -4,6 +4,7 @@ from numpy.linalg import svd
 import itertools
 from scipy.linalg import eigh
 
+# todo: Remove future warnings
 
 def get_data(dataset):
     """
@@ -1032,7 +1033,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 
 
 # Set the random seed for reproducibility
-np.random.seed(42)
+np.random.seed(123)
 
 # Generate positive random values
 dataset1_values = np.random.rand(2000, 2000) * 100  # This multiplies the values to a range of 0-100.
