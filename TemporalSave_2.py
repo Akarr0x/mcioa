@@ -207,7 +207,6 @@ def pairwise_rv(dataset):
     n = len(dataset)  # Number of datasets
 
     # For each combination, call the rv function with the 'weighted_table' of the corresponding datasets.
-    # Now we just index the dataset list directly, without using keys.
     RV = [rv(dataset[dataset_names[i]]['weighted_table'].values, dataset[dataset_names[j]]['weighted_table'].values)
           for i, j in itertools.combinations(range(n), 2)]
 
@@ -216,8 +215,6 @@ def pairwise_rv(dataset):
     m[np.triu_indices(n, 1)] = RV
 
     m = pd.DataFrame(m)
-    # If you have names/labels for each dictionary in the dataset list, you can assign them here.
-    # Otherwise, this step can be omitted.
     # m.columns = m.index = list_of_names
 
     return m
@@ -368,10 +365,8 @@ def compile_tables(objects, rownames=None, colnames=None, tablenames=None):
     compiled_tables['col.names'] = colnames
     compiled_tables['tab.names'] = tablenames
 
-    # Printing the final form of 'compiled_tables' dictionary before it's passed to ktab_util_addfactor function.
     print(compiled_tables)
 
-    # Passing the 'compiled_tables' to 'ktab_util_addfactor' function
     compiled_tables = add_factor_to_ktab(compiled_tables)
 
     return compiled_tables
@@ -392,7 +387,6 @@ def scalewt(df, wt=None, center=True, scale=True):
         var_df = np.apply_along_axis(f, axis=0, arr=df, w=wt)
         temp = var_df < 1e-14
         if np.any(temp):
-            # In Python, we generally raise a warning using the warnings module
             import warnings
             warnings.warn("Variables with null variance not standardized.")
             var_df[temp] = 1
@@ -731,7 +725,6 @@ def ktab_util_names(x):
         return {'row': row_names, 'col': col_names, 'tab': tab_names}
 
     # For 'kcoinertia' class, generate Trow names
-    # NOTE: Assumes 'supblo' and 'supX' will be defined when needed
     trow_names = [f"{i}.{j}" for i, count in zip(x['tab.names'], x['supblo']) for j in x['supX'][:count]]
 
     return {'row': row_names, 'col': col_names, 'tab': tab_names, 'Trow': trow_names}
@@ -1042,11 +1035,11 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 np.random.seed(42)
 
 # Generate positive random values
-dataset1_values = np.random.rand(1000, 1000) * 100  # This multiplies the values to a range of 0-100.
-dataset2_values = np.random.rand(1000, 1000) * 100
+dataset1_values = np.random.rand(2000, 2000) * 100  # This multiplies the values to a range of 0-100.
+dataset2_values = np.random.rand(2000, 2000) * 100
 
 # Generate gene names
-gene_names = [f"Gene_{i}" for i in range(1, 1001)]
+gene_names = [f"Gene_{i}" for i in range(1, 2001)]
 
 # Create DataFrames
 dataset1 = pd.DataFrame(dataset1_values, columns=gene_names, index=gene_names)
