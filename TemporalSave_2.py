@@ -475,15 +475,15 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
         mcoin = mcoa(X=ktcoa, nf=nf, tol=1e-07)
 
         # Scale the results
-        tab, attributes = scalewt(mcoin['Tco'], ktcoa['cw'], center=False, scale=True)
-        col_names = [f'Axis{i + 1}' for i in range(tab.shape[1])]
-        tab.columns = col_names
+        # tab, attributes = scalewt(mcoin['Tco'], ktcoa['column_weight'], center=False, scale=True)
+        # col_names = [f'Axis{i + 1}' for i in range(tab.shape[1])]
+        # tab.columns = col_names
 
         # Assign relevant values to mcoin
         mcoin['Tlw'] = ktcoa['lw']
         mcoin['Tcw'] = ktcoa['cw']
         mcoin['blo'] = ktcoa['blo']
-        mcoin['Tc1'] = tab
+        # mcoin['Tc1'] = tab
         mcoin['RV'] = RV
 
         # Return results
