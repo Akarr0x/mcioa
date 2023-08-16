@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from numpy.linalg import svd
 import itertools
-import matplotlib as plt
 from scipy.linalg import eigh
 
 
@@ -65,7 +64,7 @@ def Array2Ade4(dataset, pos=False, trans=False):
 
         # Make negative values positive if 'pos' is True
         if pos and dataset[i].values.any() < 0:
-            num = round(dataset[i].values.min()) - 1
+            num = round(dataset[i].min().min()) - 1
             dataset[i] += abs(num)
 
         # Transpose the dataset if 'trans' is True
@@ -480,9 +479,9 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
         # tab.columns = col_names
 
         # Assign relevant values to mcoin
-        mcoin['Tlw'] = ktcoa['lw']
-        mcoin['Tcw'] = ktcoa['cw']
-        mcoin['blo'] = ktcoa['blo']
+        mcoin['Tlw'] = ktcoa['column_weight']
+        mcoin['Tcw'] = ktcoa['row_weight']
+        mcoin['blo'] = ktcoa['blocks']
         # mcoin['Tc1'] = tab
         mcoin['RV'] = RV
 
@@ -1036,3 +1035,23 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     acom['class'] = 'mcoa'
 
     return acom
+
+
+
+# Set the random seed for reproducibility
+np.random.seed(42)
+
+# Generate positive random values
+dataset1_values = np.random.rand(1000, 1000) * 100  # This multiplies the values to a range of 0-100.
+dataset2_values = np.random.rand(1000, 1000) * 100
+
+# Generate gene names
+gene_names = [f"Gene_{i}" for i in range(1, 1001)]
+
+# Create DataFrames
+dataset1 = pd.DataFrame(dataset1_values, columns=gene_names, index=gene_names)
+dataset2 = pd.DataFrame(dataset2_values, columns=gene_names, index=gene_names)
+
+data_list = [dataset1, dataset2]
+
+var = mcia(data_list)
