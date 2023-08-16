@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from numpy.linalg import svd
 import itertools
-import matplotlib as plt
 from scipy.linalg import eigh
 
 
@@ -65,7 +64,7 @@ def Array2Ade4(dataset, pos=False, trans=False):
 
         # Make negative values positive if 'pos' is True
         if pos and dataset[i].values.any() < 0:
-            num = round(dataset[i].values.min()) - 1
+            num = round(dataset[i].min().min()) - 1
             dataset[i] += abs(num)
 
         # Transpose the dataset if 'trans' is True
@@ -475,15 +474,15 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
         mcoin = mcoa(X=ktcoa, nf=nf, tol=1e-07)
 
         # Scale the results
-        tab, attributes = scalewt(mcoin['Tco'], ktcoa['cw'], center=False, scale=True)
-        col_names = [f'Axis{i + 1}' for i in range(tab.shape[1])]
-        tab.columns = col_names
+        # tab, attributes = scalewt(mcoin['Tco'], ktcoa['column_weight'], center=False, scale=True)
+        # col_names = [f'Axis{i + 1}' for i in range(tab.shape[1])]
+        # tab.columns = col_names
 
         # Assign relevant values to mcoin
-        mcoin['Tlw'] = ktcoa['lw']
-        mcoin['Tcw'] = ktcoa['cw']
-        mcoin['blo'] = ktcoa['blo']
-        mcoin['Tc1'] = tab
+        mcoin['Tlw'] = ktcoa['column_weight']
+        mcoin['Tcw'] = ktcoa['row_weight']
+        mcoin['blo'] = ktcoa['blocks']
+        # mcoin['Tc1'] = tab
         mcoin['RV'] = RV
 
         # Return results
@@ -999,24 +998,33 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     var_names = []
     w = np.zeros((nbloc * 4, nf))
     i2 = 0
+    indicablo_reset = indicablo.reset_index(drop=True)
 
     # Iterate over blocks to update w and var.names based on axis and Xsepan
     for k in range(nbloc):
         i1 = i2 + 1
         i2 = i2 + 4
-        urk = acom['axis'].loc[indicablo == veclev[k]].values
-        tab = Xsepan['C1'].loc[indicablo == veclev[k]].values
-        urk = urk * cw[indicablo == veclev[k]]
+
+        bool_filter = indicablo_reset == veclev[k]
+
+        urk = acom['axis'].reset_index(drop=True)[bool_filter].values
+        tab = Xsepan['component_scores'].reset_index(drop=True)[bool_filter].values
+        bool_filter_array = np.array(bool_filter)
+        filtered_cw = np.array([cw[i] for i, flag in enumerate(bool_filter_array) if flag]).reshape(-1, 1)
+        urk = urk * filtered_cw
         tab = tab.T.dot(urk)
-        for i in range(min(nfprovi, 4)):
+        tab = np.nan_to_num(tab) # todo Check that this does not give error. The result for two datasets works, but could be a hard coding. The concept is that this function produced NaN instead of 0.00000, must be checked.
+
+        for i in range(min(nf, 4)):
             if tab[i, i] < 0:
                 tab[i, :] = -tab[i, :]
+
         w[i1 - 1:i2, :] = tab
-        var_names.extend([f"{Xsepan['tab.names'][k]}.a{str(i + 1)}" for i in range(4)])
+        var_names.extend([f"{Xsepan['tab_names'][k]}.a{str(i + 1)}" for i in range(4)])
 
     # Create DataFrame for w and store it as Tax in acom
     w_df = pd.DataFrame(w, index=auxinames['tab'])
-    w_df.columns = [f"Axis{str(i + 1)}" for i in range(nfprovi)]
+    w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
     acom['Tax'] = w_df
 
     # Set additional properties of acom
@@ -1026,7 +1034,24 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     acom['T4'] = X['T4']
     acom['class'] = 'mcoa'
 
-    # Assuming match.call() equivalent is needed in Python
-    acom['call'] = "Equivalent of match.call() in Python"
-
     return acom
+
+
+
+# Set the random seed for reproducibility
+np.random.seed(42)
+
+# Generate positive random values
+dataset1_values = np.random.rand(1000, 1000) * 100  # This multiplies the values to a range of 0-100.
+dataset2_values = np.random.rand(1000, 1000) * 100
+
+# Generate gene names
+gene_names = [f"Gene_{i}" for i in range(1, 1001)]
+
+# Create DataFrames
+dataset1 = pd.DataFrame(dataset1_values, columns=gene_names, index=gene_names)
+dataset2 = pd.DataFrame(dataset2_values, columns=gene_names, index=gene_names)
+
+data_list = [dataset1, dataset2]
+
+var = mcia(data_list)
