@@ -999,24 +999,33 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     var_names = []
     w = np.zeros((nbloc * 4, nf))
     i2 = 0
+    indicablo_reset = indicablo.reset_index(drop=True)
 
     # Iterate over blocks to update w and var.names based on axis and Xsepan
     for k in range(nbloc):
         i1 = i2 + 1
         i2 = i2 + 4
-        urk = acom['axis'].loc[indicablo == veclev[k]].values
-        tab = Xsepan['C1'].loc[indicablo == veclev[k]].values
-        urk = urk * cw[indicablo == veclev[k]]
+
+        bool_filter = indicablo_reset == veclev[k]
+
+        urk = acom['axis'].reset_index(drop=True)[bool_filter].values
+        tab = Xsepan['component_scores'].reset_index(drop=True)[bool_filter].values
+        bool_filter_array = np.array(bool_filter)
+        filtered_cw = np.array([cw[i] for i, flag in enumerate(bool_filter_array) if flag]).reshape(-1, 1)
+        urk = urk * filtered_cw
         tab = tab.T.dot(urk)
-        for i in range(min(nfprovi, 4)):
+        tab = np.nan_to_num(tab) # todo Check that this does not give error. The result for two datasets works, but could be a hard coding. The concept is that this function produced NaN instead of 0.00000, must be checked.
+
+        for i in range(min(nf, 4)):
             if tab[i, i] < 0:
                 tab[i, :] = -tab[i, :]
+
         w[i1 - 1:i2, :] = tab
-        var_names.extend([f"{Xsepan['tab.names'][k]}.a{str(i + 1)}" for i in range(4)])
+        var_names.extend([f"{Xsepan['tab_names'][k]}.a{str(i + 1)}" for i in range(4)])
 
     # Create DataFrame for w and store it as Tax in acom
     w_df = pd.DataFrame(w, index=auxinames['tab'])
-    w_df.columns = [f"Axis{str(i + 1)}" for i in range(nfprovi)]
+    w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
     acom['Tax'] = w_df
 
     # Set additional properties of acom
@@ -1025,8 +1034,5 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     acom['TC'] = X['TC']
     acom['T4'] = X['T4']
     acom['class'] = 'mcoa'
-
-    # Assuming match.call() equivalent is needed in Python
-    acom['call'] = "Equivalent of match.call() in Python"
 
     return acom
