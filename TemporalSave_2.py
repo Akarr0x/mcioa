@@ -37,6 +37,7 @@ def get_data(dataset):
 
     return dataset
 
+
 def Array2Ade4(dataset, pos=False, trans=False):
     """
     Processes and transforms the dataset.
@@ -72,7 +73,6 @@ def Array2Ade4(dataset, pos=False, trans=False):
             dataset[i] = dataset[i].T
 
     return dataset
-
 
 
 def dudi_nsc(df, nf=2):
@@ -118,8 +118,7 @@ def dudi_nsc(df, nf=2):
     return X
 
 
-
-def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = None):
+def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type=None):
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Expected input is a pandas DataFrame.")
 
@@ -147,7 +146,7 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = N
     else:
         eigen_matrix = np.dot(df, df.T)
 
-    eig_values, eig_vectors = eigh(eigen_matrix) #TODO check if SVD is faster
+    eig_values, eig_vectors = eigh(eigen_matrix)  # TODO check if SVD is faster
     eig_values = eig_values[::-1]
 
     rank = sum((eig_values / eig_values[0]) > tol)
@@ -167,13 +166,15 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = N
         col_w_sqrt_rec = 1 / np.sqrt(col_w)
         component_scores = eig_vectors[:, -nf:] * col_w_sqrt_rec.reshape(-1, 1)
         factor_scores = df_ori.multiply(res['column_weight'], axis=1)
-        factor_scores = pd.DataFrame(factor_scores.values @ component_scores)  # Matrix multiplication and conversion to DataFrame
+        factor_scores = pd.DataFrame(
+            factor_scores.values @ component_scores)  # Matrix multiplication and conversion to DataFrame
 
-        res['component_scores'] = pd.DataFrame(component_scores, columns=[f'CS{i + 1}' for i in range(nf)]) # principal axes (A)
+        res['component_scores'] = pd.DataFrame(component_scores,
+                                               columns=[f'CS{i + 1}' for i in range(nf)])  # principal axes (A)
         res['factor_scores'] = factor_scores
-        res['factor_scores'].columns = [f'Axis{i + 1}' for i in range(nf)] # row scores (L)
-        res['principal_coordinates'] = res['component_scores'].multiply(dval[::-1]) # This is the column score (C)
-        res['row_coordinates'] = res['factor_scores'].div(dval[::-1]) # This is the principal components (K)
+        res['factor_scores'].columns = [f'Axis{i + 1}' for i in range(nf)]  # row scores (L)
+        res['principal_coordinates'] = res['component_scores'].multiply(dval[::-1])  # This is the column score (C)
+        res['row_coordinates'] = res['factor_scores'].div(dval[::-1])  # This is the principal components (K)
     else:
         row_w_sqrt_rec = 1 / np.sqrt(row_w)
         row_coordinates = eig_vectors[:, -nf:] * row_w_sqrt_rec.to_numpy().reshape(-1, 1)
@@ -190,6 +191,7 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type = N
         res['class'] = [type, "dudi"]
     return res
 
+
 def rv(m1, m2):
     # Convert the datasets to numpy arrays for easier manipulation
     m1, m2 = np.array(m1), np.array(m2)
@@ -202,7 +204,6 @@ def rv(m1, m2):
 
 
 def pairwise_rv(dataset):
-
     dataset_names = list(dataset.keys())
     n = len(dataset)  # Number of datasets
 
@@ -407,6 +408,7 @@ def scalewt(df, wt=None, center=True, scale=True):
 
     return df, attributes
 
+
 def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
     """
     Performs multiple co-inertia analysis on a given set of datasets.
@@ -575,13 +577,14 @@ def recalculate(tab, scorcol, nbloc, indicablo, veclev):
     - pd.DataFrame, the adjusted table.
     """
     for k in range(nbloc):
-        subtable = tab.loc[:, indicablo == veclev[k]]
-        u_values = scorcol[indicablo == veclev[k]]
+        mask = indicablo.values == veclev[k]
+        subtable = tab.loc[:, mask]
+        u_values = scorcol[mask]
 
-        adjusted_subtable = subtable.apply(lambda col: np.sum(col * u_values) * u_values, axis=1)
-        adjusted_subtable = subtable - adjusted_subtable
+        sum_values = (subtable * u_values).sum(axis=1)
+        adjusted_subtable = subtable.sub(np.outer(sum_values, u_values))
 
-        tab.loc[:, indicablo == veclev[k]] = adjusted_subtable
+        tab.loc[:, mask] = adjusted_subtable
 
     return tab
 
@@ -659,7 +662,6 @@ def sepan(data, nf=2):
 
         rank.append(auxi['rank'])
 
-
     # Convert lists to desired data structures after the loop
     Eig = np.array(Eig)
     rank = np.array(rank)
@@ -718,7 +720,7 @@ def ktab_util_names(x):
     tab_names = list()
 
     # Repeat the entire array 'w' 4 times
-    #todo Check this with higher number of dataset
+    # todo Check this with higher number of dataset
     for i in range(len(w)):
         for k in range(1, 5):
             tab_names.append(f"{w[i]}.{k}")
@@ -792,10 +794,8 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     indicablo = X['TC']['T']
     veclev = list(set(X['TC']['T']))
 
-
     Xsepan = sepan(X, nf=4)
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
-
 
     auxinames = ktab_util_names(X)
     sums = {}
@@ -825,12 +825,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 
     Xsepan = sepan(X, nf=4)  # Recalculate sepan with the updated X
 
-
-
-
-
-
-
     # Convert the first element of X to a DataFrame and assign it to tab
     tab = pd.DataFrame(X[0])
 
@@ -854,7 +848,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 
     # Set the value of nfprovi to the minimum of 20, nlig, and ncol
     nfprovi = min(20, nlig, ncol)
-    # Loop from 1 to nfprovi (as defined earlier)
+
     for i in range(nfprovi):
         # Perform singular value decomposition (SVD) on tab
         u, s, vt = np.linalg.svd(tab)
@@ -874,8 +868,8 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         uknorme.append(normalized_v)
 
         # Extract the first singular value from s and append to valsing
-        singular_value = s[0]
-        valsing = valsing if valsing is None else np.concatenate([valsing, [singular_value]])
+        singular_value = np.array([s[0]])
+        valsing = np.concatenate([valsing, singular_value]) if valsing is not None else singular_value
 
     # Squaring the valsing to get pseudo eigenvalues
     pseudo_eigenvalues = valsing ** 2
@@ -887,15 +881,22 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     # Initialize a dictionary to store different components
     acom = {}
     acom['pseudo_eigenvalues'] = pseudo_eigenvalues
-
+    rank_fac = np.array(rank_fac)
     # Initialize a matrix to store eigenvalues for different blocks
     lambda_matrix = np.zeros((nbloc, nf))
-    for i in range(nbloc):
-        w1 = Xsepan['eigenvalues'][rank_fac == i]
-        r0 = Xsepan['rank'][i]
+
+    for i in range(1, nbloc + 1):
+        mask = (rank_fac == i)
+
+        # Filter out the eigenvalues using the mask
+        w1 = Xsepan['eigenvalues'][mask]
+
+        r0 = Xsepan['rank'][i - 1]
         if r0 > nf:
             r0 = nf
-        lambda_matrix[i, :r0] = w1[:r0]
+
+        # Assign values to the lambda_matrix
+        lambda_matrix[i - 1, :r0] = w1[:r0]
 
     # Convert the matrix to a DataFrame and assign row and column names
     lambda_df = pd.DataFrame(lambda_matrix)
@@ -906,7 +907,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     # Create a DataFrame for synthesized variables
     syn_var_df = pd.DataFrame(np.array(compogene).T[:, :nf])
     syn_var_df.columns = [f'SynVar{i}' for i in range(1, nf + 1)]
-    syn_var_df.index = X.index.names
+    syn_var_df.index = X['row.names']
     acom['SynVar'] = syn_var_df
 
     # Create a DataFrame for axes
@@ -919,35 +920,44 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     w = np.zeros((nlig * nbloc, nf))
     covar = np.zeros((nbloc, nf))
     i2 = 0
+    current_index = 0  # starting from the first row of w
 
     # Iterate over blocks
     for k in range(nbloc):
-        i1 = i2 + 1
+        i1 = i2
         i2 = i2 + nlig
-        # Select appropriate rows from the axis DataFrame
-        urk = acom['axis'].loc[indicablo == veclev[k]].values
+        mask = indicablo == veclev[k]
+        urk = acom['axis'].reset_index(drop=True).loc[mask].values
         # Extract corresponding matrix from X
         tab = np.array(X[k])
         # Multiply urk by appropriate column weights
-        urk = urk * cw[indicablo == veclev[k]]
-        urk = tab.dot(urk)
-        w[i1 - 1:i2, :] = urk
-        urk = urk.dot(acom['SynVar']) * lw
-        covar[k, :] = urk.sum(axis=1)
+        cw_array = np.array(cw)
+        urk *= cw_array[mask].reshape(-1, 1)
+        urk = tab @ urk
+        # Assign the rows of urk to w, starting from current_index
+        rows_in_urk = urk.shape[0]
+        w[current_index:current_index + rows_in_urk, :] = urk
+
+        # Move the current_index forward by the number of rows just added
+        current_index += rows_in_urk
+
+        # Matrix multiplication with acom['SynVar'] and element-wise multiplication with lw
+        urk = (urk * acom['SynVar'].values) * lw.reshape(-1, 1)
+        covar[k, :] = urk.sum(axis=0)
 
     # Convert w to DataFrame with appropriate row names and column names
     w_df = pd.DataFrame(w, index=auxinames['row'])
-    w_df.columns = [f"Axis{str(i + 1)}" for i in range(nfprovi)]
+    w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
     acom['Tli'] = w_df
 
     # Convert covar to DataFrame and square it, then store in acom
     covar_df = pd.DataFrame(covar)
-    covar_df.index = tab_names(X) #todo: check value
-    covar_df.columns = [f"cov2{str(i + 1)}" for i in range(nfprovi)]
+    covar_df.index = X['tab.names']  # todo: check value
+    covar_df.columns = [f"cov2{str(i + 1)}" for i in range(nf)]
     acom['cov2'] = covar_df ** 2
 
     # Initialize w and indices
-    w = np.zeros((nlig * nbloc, nfprovi))
+    w = np.zeros((nlig * nbloc, nf))
     i2 = 0
 
     # Iterate over blocks to adjust w based on Tli and sqrt of lw
@@ -955,17 +965,19 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         i1 = i2 + 1
         i2 = i2 + nlig
         tab = acom['Tli'].iloc[i1 - 1:i2, :]
-        adjusted_tab = (tab * np.sqrt(lw)).pow(2).sum(axis=0).apply(np.sqrt)
-        tab = tab.divide(adjusted_tab, axis=1)
-        w[i1 - 1:i2, :] = tab
+        lw_sqrt = np.sqrt(lw)
+        squared_values = (tab.values * lw_sqrt.reshape(-1, 1)) ** 2
+        column_sums_sqrt = np.sqrt(squared_values.sum(axis=0))
+        tab = tab.divide(column_sums_sqrt)
+        w[i1 - 1:i2, :] = tab.values
+
 
     # Create DataFrame for adjusted w and store it as Tl1 in acom
     w_df = pd.DataFrame(w, index=auxinames['row'])
-    w_df.columns = [f"Axis{str(i + 1)}" for i in range(nfprovi)]
+    w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
     acom['Tl1'] = w_df
 
-    # Reset variables
-    w = np.zeros((ncol, nfprovi))
+    w = np.zeros((ncol, nf))
     i2 = 0
 
     # Iterate over blocks to update w based on SynVar and lw
@@ -974,17 +986,18 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         i2 = i2 + X[k].shape[1]
         urk = np.array(acom['SynVar'])
         tab = np.array(X[k])
-        urk = urk * lw
+        urk = urk * lw[:, np.newaxis]
         w[i1 - 1:i2, :] = tab.T.dot(urk)
+
 
     # Create DataFrame for w and store it as Tco in acom
     w_df = pd.DataFrame(w, index=auxinames['col'])
-    w_df.columns = [f"SV{str(i + 1)}" for i in range(nfprovi)]
+    w_df.columns = [f"SV{str(i + 1)}" for i in range(nf)]
     acom['Tco'] = w_df
 
     # Reset variables and initialize var.names
     var_names = []
-    w = np.zeros((nbloc * 4, nfprovi))
+    w = np.zeros((nbloc * 4, nf))
     i2 = 0
 
     # Iterate over blocks to update w and var.names based on axis and Xsepan
@@ -1017,4 +1030,3 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     acom['call'] = "Equivalent of match.call() in Python"
 
     return acom
-
