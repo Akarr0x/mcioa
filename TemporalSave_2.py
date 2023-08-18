@@ -3,6 +3,7 @@ import numpy as np
 from numpy.linalg import svd
 import itertools
 from scipy.linalg import eigh
+import time
 
 # todo: Remove future warnings
 
@@ -449,7 +450,7 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
         dataset = Array2Ade4(dataset, pos=True)
 
         # Perform Non-Symmetric Correspondence Analysis on each dataset
-        nsca_results = {f'dataset_{i}': dudi_nsc(df, nf=nf) for i, df in enumerate(dataset)}
+        nsca_results = {f'dataset_{i}': dudi_nsc(df, nf=nf) for i, df in enumerate(dataset)} # Preprocessing
 
         # Store transformed results
         nsca_results_t = nsca_results
@@ -459,11 +460,12 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
             nsca_results_t[name] = t_dudi(result)
 
         # Calculate the pairwise RV coefficients
-        RV = pairwise_rv(nsca_results)
+        RV = pairwise_rv(nsca_results) # RV coefficient is a way to define the information stored in two datasets, a value of 0 means
+                                        # no relationship while 1 means perfect agreement between the two datasets
 
         # Compile tables for analysis
         nsca_results_list = list(nsca_results.values())
-        ktcoa = compile_tables(nsca_results_list)
+        ktcoa = compile_tables(nsca_results_list) # This is done to make the different datasets coherent with one another
 
         # Perform MCoA
         mcoin = mcoa(X=ktcoa, nf=nf, tol=1e-07)
@@ -533,6 +535,7 @@ def normalize_per_block(scorcol, nbloc, indicablo, veclev, tol=1e-7):
     """
     Normalize `scorcol` by block, based on the block indicators `indicablo`
     and the unique block levels `veclev`.
+    This function is used to be sure that u_k is unitary
 
     Parameters:
     - scorcol: np.array, scores or values to be normalized.
@@ -559,6 +562,7 @@ def normalize_per_block(scorcol, nbloc, indicablo, veclev, tol=1e-7):
 def recalculate(tab, scorcol, nbloc, indicablo, veclev):
     """
     Adjust values in `tab` based on `scorcol` by block.
+    This function is used to add the "deflation" method used by mcioa
 
     Parameters:
     - tab: pd.DataFrame, table to be adjusted.
@@ -769,6 +773,8 @@ def tab_names(x, value):
 
 
 def mcoa(X, option=None, nf=3, tol=1e-07):
+    start_time = time.time()
+
     if option is None:
         option = ["inertia", "lambda1", "uniform", "internal"]
     if X.get('class') != "ktab":
@@ -786,8 +792,9 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     nbloc = len(X['blocks'])
     indicablo = X['TC']['T']
     veclev = list(set(X['TC']['T']))
+                                    #todo: sepan and svd are the slowing parts (probably not the actual svd)
+    Xsepan = sepan(X, nf=4) #This is used to calculate the component scores factor scores for each data
 
-    Xsepan = sepan(X, nf=4)
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
 
     auxinames = ktab_util_names(X)
@@ -802,7 +809,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
             sums[rank] = sums.get(rank, 0) + value
 
         # Create tabw by taking reciprocals of the accumulated sums
-        tabw = [1 / sums[i] for i in sorted(sums.keys())]
+        tabw = [1 / sums[i] for i in sorted(sums.keys())] # This is done to assign weights to each rank
     elif option == "uniform":
         tabw = [1] * nbloc
     elif option == "internal":
@@ -811,12 +818,18 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         raise ValueError("Unknown option")
 
     for i in range(nbloc):
-        X[i] = [X[i] * np.sqrt(tabw[i])]
+        X[i] = [X[i] * np.sqrt(tabw[i])] # We are weighting the datasets according to the calculated eigenvalues
 
     for k in range(nbloc):
         X[k] = pd.DataFrame(X[k][0])
 
     Xsepan = sepan(X, nf=4)  # Recalculate sepan with the updated X
+
+    '''
+    The call of two sepan functions, one with the non weighted dataset and the other with the weighted tables 
+    is done so that the contributions of each datasets are balanced, so that the co-inertia structure better reflects
+    shared patterns of the different datasets, not just patterns from the most variable dataset
+    '''
 
     # Convert the first element of X to a DataFrame and assign it to tab
     tab = pd.DataFrame(X[0])
@@ -839,7 +852,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     uknorme = []
     valsing = None
 
-    # Set the value of nfprovi to the minimum of 20, nlig, and ncol
     nfprovi = min(20, nlig, ncol)
 
     for i in range(nfprovi):
@@ -850,17 +862,16 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         normalized_u = u[:, 0] / np.sqrt(lw)
         compogene.append(normalized_u)  # Append to the list of compogene
 
-        # Extract the first column of vt (v transposed in SVD), then normalize by the custom function normalizer_per_block
+        # Extract the first column of vt (v transposed in SVD), then normalize it
         normalized_v = normalize_per_block(vt[0, :], nbloc, indicablo, veclev)
 
-        # Re-calculate tab using the custom function recalculate
+        # Re-calculate tab
         tab = recalculate(tab, normalized_v, nbloc, indicablo, veclev)
 
-        # Normalize normalized_v by the square root of cw (column_weights) and append to the list of uknorme
         normalized_v /= np.sqrt(cw)
         uknorme.append(normalized_v)
 
-        # Extract the first singular value from s and append to valsing
+        # Extract the first singular value
         singular_value = np.array([s[0]])
         valsing = np.concatenate([valsing, singular_value]) if valsing is not None else singular_value
 
@@ -871,11 +882,9 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     if nf <= 0:
         nf = 2
 
-    # Initialize a dictionary to store different components
     acom = {}
     acom['pseudo_eigenvalues'] = pseudo_eigenvalues
     rank_fac = np.array(rank_fac)
-    # Initialize a matrix to store eigenvalues for different blocks
     lambda_matrix = np.zeros((nbloc, nf))
 
     for i in range(1, nbloc + 1):
@@ -952,7 +961,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     # Initialize w and indices
     w = np.zeros((nlig * nbloc, nf))
     i2 = 0
-
     # Iterate over blocks to adjust w based on Tli and sqrt of lw
     for k in range(nbloc):
         i1 = i2 + 1
@@ -1036,11 +1044,11 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 np.random.seed(123)
 
 # Generate positive random values
-dataset1_values = np.random.rand(2000, 2000) * 100  # This multiplies the values to a range of 0-100.
-dataset2_values = np.random.rand(2000, 2000) * 100
+dataset1_values = np.random.rand(1000, 1000) * 100  # This multiplies the values to a range of 0-100.
+dataset2_values = np.random.rand(1000, 1000) * 100
 
 # Generate gene names
-gene_names = [f"Gene_{i}" for i in range(1, 2001)]
+gene_names = [f"Gene_{i}" for i in range(1, 1001)]
 
 # Create DataFrames
 dataset1 = pd.DataFrame(dataset1_values, columns=gene_names, index=gene_names)
@@ -1048,4 +1056,7 @@ dataset2 = pd.DataFrame(dataset2_values, columns=gene_names, index=gene_names)
 
 data_list = [dataset1, dataset2]
 
+# Use the context manager in the part of the code causing the warning
+
 var = mcia(data_list)
+
