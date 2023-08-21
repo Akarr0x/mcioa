@@ -851,24 +851,25 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     tab.columns = auxinames['col']
 
     '''
-    This is used to perform weighting transformations to the data.
-    This is analogous to taking the square root of the diagonal matrix of weights, 
-    \(D^{1/2}\), and applying it to our data matrix.
+    This is used to perform combined row and column weighting transformations to the data.
+    The row weights, represented by \(D^{1/2}\), are multiplied with the data to adjust the influence of each row (sample) 
+    in the final analysis. This ensures that each row's contributions are scaled according to its importance or frequency.
+
+    The column weights, represented by \(Q^{1/2}_k\), are multiplied with the data to adjust the influence of each column (feature)
+    in the corresponding data block \(X_k\). This accounts for variable importance, scaling, or measurement units, ensuring that 
+    each feature's contribution is balanced when combined with other datasets.
+
+    These operations transform each data block \(X_k\) into \(\tilde{X}_k = w_k^{1/2} D^{1/2} X_k Q_k^{1/2}\), as per the 
+    This results in a weighted dataset that is used in the subsequent optimization problem.
     '''
 
-    # Multiply the rows of tab by the square root of lw
-    # Mathematically, this is equivalent to:
-    # \( X_{new} = D^{1/2}_{rows} X \)
     tab = tab.mul(np.sqrt(lw), axis=0)
 
-    # Multiply the columns of tab by the square root of cw
-    # Mathematically, this is equivalent to:
-    # \( X_{final} = X_{new} D^{1/2}_{cols} \)
     tab = tab.mul(np.sqrt(cw), axis=1)
 
     '''
     Initialization for upcoming calculations.
-    compogene and uknorme seem to be lists that will hold computation results, 
+    compogene and uknorme are lists that will hold computation results, 
     while valsing might be for singular values, but we would need more context to be certain.
     '''
     compogene = []
@@ -891,6 +892,10 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         '''
         u, s, vt = np.linalg.svd(tab)
 
+        '''
+        Theese two normalization align with the constraint a^t a = 1 abd b^t b = 1, considering the 
+        'normalized_u' as  the a_k 
+        '''
         # Extract the first column of u and normalize by the square root of lw (row_weights)
         normalized_u = u[:, 0] / np.sqrt(lw)
         compogene.append(normalized_u)  # Append to the list of compogene
@@ -983,23 +988,12 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         Fetch the computed v_k values for the current block. 
         Mathematically:
         v_k = the kth vector from the right singular matrix corresponding to the kth block.
+        After the weight multiplication we can see that this is equal to a_k = Q^1/2_k u_k
         '''
         vk = acom['axis'].reset_index(drop=True).loc[mask].values
 
-        '''
-        Extract the data matrix for the current block.
-        Mathematically:
-        X_k = the subset of the main data matrix corresponding to the kth block.
-        '''
         tab = np.array(X[k])
 
-        '''
-        Weight the v_k values by the column weights. 
-        This step ensures that each variable (column) is appropriately scaled before further processing.
-        Mathematically:
-        v_k = v_k * Q, where Q is a diagonal matrix with column weights.
-        Here, the operation is a simple multiplication due to the structure of Q.
-        '''
         cw_array = np.array(cw)
         vk *= cw_array[mask].reshape(-1, 1)
 
@@ -1007,7 +1001,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         Compute the product of the data matrix for the block and the weighted v_k values.
         This operation gives a projection of the data onto the direction of v_k.
         Mathematically:
-        projection_k = X_k * v_k
+        projection_k = X_k * a_k
         '''
         projection = tab @ vk
 
@@ -1021,7 +1015,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         This operation ensures that the resulting values are in terms of how much they align 
         with the primary singular vectors. Then, it's scaled further using row weights.
         Mathematically:
-        scaled_data = (projection_k * u_k) * P, where P is a diagonal matrix with row weights.
+        scaled_data = (projection_k * v) * D.
         '''
         scaled_data = (projection * acom['SynVar'].values) * lw.reshape(-1, 1)
 
@@ -1035,6 +1029,10 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     # Convert w to DataFrame with appropriate row names and column names
     w_df = pd.DataFrame(w, index=auxinames['row'])
     w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
+    '''
+    Since w is deifned as X_k * a_k and a_k is just a weighted u_k this should be the projection in the new space
+    define by u_k
+    '''
     acom['Tli'] = w_df
 
     # Convert covar to DataFrame and square it, then store in acom
@@ -1060,7 +1058,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     # Create DataFrame for adjusted w and store it as Tl1 in acom
     w_df = pd.DataFrame(w, index=auxinames['row'])
     w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
-    acom['Tl1'] = w_df
+    acom['Tl1'] = w_df # a normalized and re-scaled version of Tli
 
     w = np.zeros((ncol, nf))
     i2 = 0
