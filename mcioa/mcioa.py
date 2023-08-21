@@ -463,7 +463,7 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
         # Calculate the pairwise RV coefficients
         RV = pairwise_rv(
             nsca_results)  # RV coefficient is a way to define the information stored in two datasets, a value of 0 means
-        # no relationship while 1 means perfect agreement between the two datasets
+        # no relationship while 1 mean perfect agreement between the two datasets
 
         # Compile tables for analysis
         nsca_results_list = list(nsca_results.values())
@@ -473,7 +473,7 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
         # Perform MCoA
         mcoin = mcoa(X=ktcoa, nf=nf, tol=1e-07)
 
-        # Scale the results
+        # Scale the results dxs
         # tab, attributes = scalewt(mcoin['Tco'], ktcoa['column_weight'], center=False, scale=True)
         # col_names = [f'Axis{i + 1}' for i in range(tab.shape[1])]
         # tab.columns = col_names
@@ -795,7 +795,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     nbloc = len(X['blocks'])
     indicablo = X['TC']['T']
     veclev = list(set(X['TC']['T']))
-    # todo: sepan and svd are the slowing parts (probably not the actual svd)
     Xsepan = sepan(X, nf=4)  # This is used to calculate the component scores factor scores for each data
 
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
@@ -894,7 +893,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 
         '''
         Theese two normalization align with the constraint a^t a = 1 abd b^t b = 1, considering the 
-        'normalized_u' as  the a_k 
+        'normalized_u' as  the b_k 
         '''
         # Extract the first column of u and normalize by the square root of lw (row_weights)
         normalized_u = u[:, 0] / np.sqrt(lw)
@@ -954,13 +953,13 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     acom['lambda'] = lambda_df
 
     # Create a DataFrame for synthesized variables
-    syn_var_df = pd.DataFrame(np.array(compogene).T[:, :nf])
+    syn_var_df = pd.DataFrame(np.array(compogene).T[:, :nf]) # should contain the v_k
     syn_var_df.columns = [f'SynVar{i}' for i in range(1, nf + 1)]
     syn_var_df.index = X['row.names']
     acom['SynVar'] = syn_var_df
 
     # Create a DataFrame for axes
-    axis_df = pd.DataFrame(np.array(uknorme).T[:, :nf])
+    axis_df = pd.DataFrame(np.array(uknorme).T[:, :nf]) # uknorme should be the u_k
     axis_df.columns = [f'Axis{i}' for i in range(1, nf + 1)]
     axis_df.index = auxinames['col']
     acom['axis'] = axis_df
