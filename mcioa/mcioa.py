@@ -4,7 +4,7 @@ from numpy.linalg import svd
 import itertools
 from scipy.linalg import eigh
 import time
-
+np.random.seed(0)
 
 # todo: Remove future warnings
 
@@ -368,8 +368,6 @@ def compile_tables(objects, rownames=None, colnames=None, tablenames=None):
     compiled_tables['col.names'] = colnames
     compiled_tables['tab.names'] = tablenames
 
-    print(compiled_tables)
-
     compiled_tables = add_factor_to_ktab(compiled_tables)
 
     return compiled_tables
@@ -714,8 +712,6 @@ def ktab_util_names(x):
     for sublist, suffix in zip(secondary_keys, unique_suffixes):
         col_names.extend([f"{key}.{suffix}" for key in sublist])
 
-    print(col_names)
-
     w = x['tab.names']
     l0 = len(w)
     tab_names = list()
@@ -725,8 +721,6 @@ def ktab_util_names(x):
     for i in range(len(w)):
         for k in range(1, 5):
             tab_names.append(f"{w[i]}.{k}")
-
-    print(tab_names)
 
     # Check for 'kcoinertia' class
     if 'kcoinertia' not in x['class']:
@@ -1119,23 +1113,3 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 
     return acom
 
-
-# Set the random seed for reproducibility
-np.random.seed(123)
-
-# Generate positive random values
-dataset1_values = np.random.rand(1000, 1000) * 100  # This multiplies the values to a range of 0-100.
-dataset2_values = np.random.rand(1000, 1000) * 100
-
-# Generate gene names
-gene_names = [f"Gene_{i}" for i in range(1, 1001)]
-
-# Create DataFrames
-dataset1 = pd.DataFrame(dataset1_values, columns=gene_names, index=gene_names)
-dataset2 = pd.DataFrame(dataset2_values, columns=gene_names, index=gene_names)
-
-data_list = [dataset1, dataset2]
-
-# Use the context manager in the part of the code causing the warning
-
-var = mcia(data_list)
