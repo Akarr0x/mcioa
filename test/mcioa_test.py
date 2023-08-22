@@ -68,9 +68,7 @@ def test_mcia():
 
     expected_result = pd.DataFrame(expected_result_data, index=index_values)
 
-    # Example: assert the result meets some condition
     pd.testing.assert_frame_equal(result['mcoa']['Tli'], expected_result, atol=1e-6)
-    # Add other assertions here, depending on what you expect from the function
 
 def test_mcia_eigenvalues():
     dataset1_values = [
@@ -180,5 +178,4 @@ def test_mcia_eigenvalues():
 
     expected_result = pd.DataFrame(expected_result_data, index=index_values)
 
-    # Assert that the result matches the expected result
     pd.testing.assert_frame_equal(result['mcoa']['Tl1'], expected_result, atol=1e-6)
