@@ -179,3 +179,27 @@ def test_mcia_tl1():
     expected_result = pd.DataFrame(expected_result_data, index=index_values)
 
     pd.testing.assert_frame_equal(result['mcoa']['Tl1'], expected_result, atol=1e-6)
+
+
+import pandas as pd
+import numpy as np
+
+def test_mcia_random_datasets():
+    import time
+    start = time.time()
+    np.random.seed(42) # Ensuring reproducibility
+
+    # Building dataset1 with 1000 observations and positive numbers
+    dataset1_values = np.random.randint(1, 1000, size=(1000, 1000)) # Adjust the range as needed
+    gene_names = [f"Gene_{i}" for i in range(1, 1001)]
+    dataset1 = pd.DataFrame(dataset1_values, columns=gene_names)
+
+    # Building dataset2 with 1000 observations and positive numbers
+    dataset2_values = np.random.randint(1, 1000, size=(1000, 1000)) # Adjust the range as needed
+    dataset2 = pd.DataFrame(dataset2_values, columns=gene_names)
+
+    data_list = [dataset1, dataset2]
+
+    # Call the mcia function (you should define this function elsewhere in your code)
+    result = mcia(data_list)
+    print(time.time() - start)

@@ -4,6 +4,7 @@ from numpy.linalg import svd
 import itertools
 from scipy.linalg import eigh
 import time
+from sklearn.decomposition import TruncatedSVD
 np.random.seed(0)
 
 # todo: Remove future warnings
@@ -120,7 +121,7 @@ def dudi_nsc(df, nf=2):
     return X
 
 
-def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type=None):
+def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type=None, SVD = True):
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Expected input is a pandas DataFrame.")
 
@@ -143,13 +144,25 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type=Non
     df = df.multiply(np.sqrt(row_w), axis=0)
     df = df.multiply(np.sqrt(col_w), axis=1)
 
-    if not transpose:
-        eigen_matrix = np.dot(df.T, df)
-    else:
-        eigen_matrix = np.dot(df, df.T)
+    if SVD:
+        if not transpose:
+            X = df.values
+        else:
+            X = df.T.values
 
-    eig_values, eig_vectors = eigh(eigen_matrix)  # TODO check if SVD is faster
-    eig_values = eig_values[::-1]
+        svd = TruncatedSVD(n_components=nf, tol=tol)
+        svd.fit(X)
+        eig_values = svd.singular_values_ ** 2
+        eig_vectors = svd.components_.T if not transpose else svd.transform(X)
+
+    else:
+        if not transpose:
+            eigen_matrix = np.dot(df.T, df)
+        else:
+            eigen_matrix = np.dot(df, df.T)
+
+        eig_values, eig_vectors = eigh(eigen_matrix)
+        eig_values = eig_values[::-1]
 
     rank = sum((eig_values / eig_values[0]) > tol)
     nf = min(nf, rank)
@@ -875,7 +888,8 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     Determine how many SVD iterations or components to compute,
     limiting the number of singular vectors/values to a maximum of 20.
     '''
-    nfprovi = min(20, nlig, ncol)
+
+    nfprovi = min(20, nlig, ncol)   #todo: This is the slow part
     # Perform SVD computations
     for i in range(nfprovi):
         '''
@@ -884,7 +898,11 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         \( A = U \Sigma V^T \)
         where U and V are orthogonal matrices and \(\Sigma\) is a diagonal matrix with singular values.
         '''
-        u, s, vt = np.linalg.svd(tab)
+
+        truncated_svd = TruncatedSVD(n_components=10)
+        u = truncated_svd.fit_transform(tab)
+        s = truncated_svd.singular_values_
+        vt = truncated_svd.components_
 
         '''
         Theese two normalization align with the constraint a^t a = 1 abd b^t b = 1, considering the 
@@ -893,6 +911,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         # Extract the first column of u and normalize by the square root of lw (row_weights)
         normalized_u = u[:, 0] / np.sqrt(lw)
         compogene.append(normalized_u)  # Append to the list of compogene
+
 
         # Extract the first column of vt (v transposed in SVD), then normalize it
         normalized_v = normalize_per_block(vt[0, :], nbloc, indicablo, veclev)
@@ -915,6 +934,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         # Extract the first singular value
         singular_value = np.array([s[0]])
         valsing = np.concatenate([valsing, singular_value]) if valsing is not None else singular_value
+
 
     # Squaring the valsing to get pseudo eigenvalues
     pseudo_eigenvalues = valsing ** 2
