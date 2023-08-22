@@ -117,7 +117,7 @@ def test_mcia_eigenvalues():
 
 
 
-def test_mcia_eigenvalues():
+def test_mcia_tl1():
     dataset1_values = [
         [23, 43, 65, 22, 1, 78, 34, 54, 23, 65],
         [34, 23, 45, 65, 23, 43, 56, 67, 34, 23],
