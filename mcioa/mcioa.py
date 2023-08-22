@@ -351,7 +351,7 @@ def compile_tables(objects, rownames=None, colnames=None, tablenames=None):
         if 'class' in dictionary.keys():
             tablenames.append(dictionary['class'])
         else:
-            tablenames.append(f"Ana{len(tablenames) + 1}")
+            tablenames.append(f"Ana{len(tablenames) + 1}") #todo: This is the part that could be problematic
 
     # check and set tablenames
     if tablenames is None:
@@ -460,7 +460,8 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
 
         # Calculate the pairwise RV coefficients
         RV = pairwise_rv(
-            nsca_results)  # RV coefficient is a way to define the information stored in two datasets, a value of 0 means
+            nsca_results)
+        # RV coefficient is a way to define the information stored in two datasets, a value of 0 means
         # no relationship while 1 mean perfect agreement between the two datasets
 
         # Compile tables for analysis
