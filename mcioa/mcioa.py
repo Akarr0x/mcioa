@@ -788,7 +788,8 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     ncol = len(cw)
     nbloc = len(X['blocks'])
     indicablo = X['TC']['T']
-    veclev = list(set(X['TC']['T']))
+    veclev = sorted(list(set(X['TC']['T'])))
+    #todo somehow this (the sorted argument) fixes the problem that sometimes the analysis order are swapped, causing wrong results. This is present somehow only in tests, but it seems like it's not a problem for a normal call of the functions. Will try to dive deeper into it after
     Xsepan = sepan(X, nf=4)  # This is used to calculate the component scores factor scores for each data
 
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
@@ -874,7 +875,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     limiting the number of singular vectors/values to a maximum of 20.
     '''
     nfprovi = min(20, nlig, ncol)
-
     # Perform SVD computations
     for i in range(nfprovi):
         '''
@@ -967,7 +967,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     covar = np.zeros((nbloc, nf))
     i2 = 0
     current_index = 0  # Pointer for rows in `w`.
-
     # Start iterating over blocks.
     for k in range(nbloc):
         # Update the slice pointers.
@@ -984,7 +983,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         After the weight multiplication we can see that this is equal to a_k = Q^1/2_k u_k
         '''
         vk = acom['axis'].reset_index(drop=True).loc[mask].values
-
         tab = np.array(X[k])
 
         cw_array = np.array(cw)
