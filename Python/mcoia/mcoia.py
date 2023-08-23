@@ -2,12 +2,16 @@ import pandas as pd
 import numpy as np
 from numpy.linalg import svd
 import itertools
+import scipy
 from scipy.linalg import eigh
 import time
 from sklearn.decomposition import TruncatedSVD
+
 np.random.seed(0)
 
+
 # todo: Remove future warnings
+
 
 def get_data(dataset):
     """
@@ -115,17 +119,18 @@ def dudi_nsc(df, nf=2):
     df = df.subtract(col_w, axis=1)
     df *= col
 
-    X = as_dudi(df, np.ones(col) / col, row_w, nf)
+    X = as_dudi(df, np.ones(col) / col, row_w, nf, transpose=transpose)
     X['N'] = N
 
     return X
 
 
-def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type=None, SVD = True):
+def as_dudi(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=True, transpose=False):
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Expected input is a pandas DataFrame.")
 
     lig, col = df.shape
+
     if len(col_w) != col:
         raise ValueError("Weights dimensions must match DataFrame dimensions.")
     if len(row_w) != lig:
@@ -135,7 +140,6 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type=Non
     if any(np.array(row_w) < 0):
         raise ValueError("Weights must be non-negative.")
 
-    transpose = False
     if lig < col:
         transpose = True
 
@@ -150,10 +154,10 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type=Non
         else:
             X = df.T.values
 
-        svd = TruncatedSVD(n_components=nf, tol=tol)
-        svd.fit(X)
-        eig_values = svd.singular_values_ ** 2
-        eig_vectors = svd.components_.T if not transpose else svd.transform(X)
+        truncated = TruncatedSVD(n_components=nf, tol=tol)
+        truncated.fit(X)
+        eig_values = truncated.singular_values_ ** 2
+        eig_vectors = truncated.components_.T if not transpose else truncated.transform(X)
 
     else:
         if not transpose:
@@ -175,7 +179,7 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type=Non
     res['factor_numbers'] = nf
     col_w = [1 if x == 0 else x for x in col_w]
     row_w = [1 if x == 0 else x for x in row_w]
-    dval = np.sqrt(res['eigenvalues'][:nf])
+    eigen_sqrt = np.sqrt(res['eigenvalues'][:nf])
 
     if not transpose:
         col_w_sqrt_rec = 1 / np.sqrt(col_w)
@@ -188,34 +192,34 @@ def as_dudi(df, col_w, row_w, nf=2, scannf=False, full=False, tol=1e-7, type=Non
                                                columns=[f'CS{i + 1}' for i in range(nf)])  # principal axes (A)
         res['factor_scores'] = factor_scores
         res['factor_scores'].columns = [f'Axis{i + 1}' for i in range(nf)]  # row scores (L)
-        res['principal_coordinates'] = res['component_scores'].multiply(dval[::-1])  # This is the column score (C)
-        res['row_coordinates'] = res['factor_scores'].div(dval[::-1])  # This is the principal components (K)
+        res['principal_coordinates'] = res['component_scores'].multiply(eigen_sqrt[::-1])  # This is the column score (C)
+        res['row_coordinates'] = res['factor_scores'].div(eigen_sqrt[::-1])  # This is the principal components (K)
     else:
         row_w_sqrt_rec = 1 / np.sqrt(row_w)
         row_coordinates = eig_vectors[:, -nf:] * row_w_sqrt_rec.to_numpy().reshape(-1, 1)
         principal_coordinates = (df.T.multiply(res['row_weight'], axis='columns') @ row_coordinates).T
         res['row_coordinates'] = pd.DataFrame(row_coordinates, columns=[f'RS{i + 1}' for i in range(nf)])
         res['principal_coordinates'] = pd.DataFrame(principal_coordinates, columns=[f'Comp{i + 1}' for i in range(nf)])
-        res['factor_scores'] = res['row_coordinates'].multiply(dval[::-1])
-        res['component_scores'] = res['principal_coordinates'].div(dval[::-1])
+        res['factor_scores'] = res['row_coordinates'].multiply(eigen_sqrt[::-1])
+        res['component_scores'] = res['principal_coordinates'].div(eigen_sqrt[::-1])
 
     res['call'] = None
-    if type is None:
+    if class_type is None:
         res['class'] = ['dudi']
     else:
-        res['class'] = [type, "dudi"]
+        res['class'] = [class_type, "dudi"]
     return res
 
 
 def rv(m1, m2):
     # Convert the datasets to numpy arrays for easier manipulation
     m1, m2 = np.array(m1), np.array(m2)
-    # nscm1 and nscm2 are the "normed sums of cross products" of m1 and m2, respectively.
-    nscm1 = m1.T @ m1
-    nscm2 = m2.T @ m2
+    # normed_scm1 and normed_scm2 are the "normed sums of cross products" of m1 and m2, respectively.
+    normed_scm1 = m1.T @ m1
+    normed_scm2 = m2.T @ m2
     # Calculate the RV coefficient using the formula.
-    rv = np.sum(nscm1 * nscm2) / np.sqrt(np.sum(nscm1 * nscm1) * np.sum(nscm2 * nscm2))
-    return rv
+    rv_index = np.sum(normed_scm1 * normed_scm2) / np.sqrt(np.sum(normed_scm1 * normed_scm2) * np.sum(normed_scm2 * normed_scm2))
+    return rv_index
 
 
 def pairwise_rv(dataset):
@@ -239,18 +243,11 @@ def pairwise_rv(dataset):
 def t_dudi(x):
     if not isinstance(x, dict) or 'eigenvalues' not in x.keys():
         raise ValueError("Dictionary of class 'dudi' expected")
-    res = {}
-    res['weighted_table'] = x['weighted_table'].transpose()
-    res['column_weight'] = x['row_weight']
-    res['row_weight'] = x['column_weight']
-    res['eigenvalues'] = x['eigenvalues']
-    res['rank'] = x['rank']
-    res['factor_numbers'] = x['factor_numbers']
-    res['component_scores'] = x['row_coordinates']
-    res['row_coordinates'] = x['component_scores']
-    res['principal_coordinates'] = x['factor_scores']
-    res['factor_scores'] = x['principal_coordinates']
-    res['dudi'] = 'transpo'
+    res = {'weighted_table': x['weighted_table'].transpose(), 'column_weight': x['row_weight'],
+           'row_weight': x['column_weight'], 'eigenvalues': x['eigenvalues'], 'rank': x['rank'],
+           'factor_numbers': x['factor_numbers'], 'component_scores': x['row_coordinates'],
+           'row_coordinates': x['component_scores'], 'principal_coordinates': x['factor_scores'],
+           'factor_scores': x['principal_coordinates'], 'dudi': 'transpo'}
     return res
 
 
@@ -320,7 +317,7 @@ def add_factor_to_ktab(ktab_dict):
     return ktab_dict
 
 
-def compile_tables(objects, rownames=None, colnames=None, tablenames=None):
+def compile_tables(objects, rownames=None, colnames=None):
     """
     The function compiles a list of tables (as dictionaries) with 'row_weight', 'column_weight', and 'weighted_table'
     attributes into a single output dictionary 'compiled_tables' to be passed to ktab_util_addfactor function.
@@ -364,7 +361,7 @@ def compile_tables(objects, rownames=None, colnames=None, tablenames=None):
         if 'class' in dictionary.keys():
             tablenames.append(dictionary['class'])
         else:
-            tablenames.append(f"Ana{len(tablenames) + 1}") #todo: This is the part that could be problematic
+            tablenames.append(f"Ana{len(tablenames) + 1}")  # todo: This is the part that could be problematic
 
     # check and set tablenames
     if tablenames is None:
@@ -416,7 +413,7 @@ def scalewt(df, wt=None, center=True, scale=True):
     return df, attributes
 
 
-def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
+def mcia(dataset, nf=2, nsc=True):
     """
     Performs multiple co-inertia analysis on a given set of datasets.
 
@@ -428,7 +425,7 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
     - svd (bool, default=True): [unused in the provided function]
 
     Returns:
-    - mciares (dict): Results containing mcoa and coa analyses.
+    - mciares (dict): Results containing mcoa and coa analyzes.
     """
 
     # Check if all items in dataset are pandas DataFrames
@@ -483,23 +480,23 @@ def mcia(dataset, nf=2, scan=False, nsc=True, svd=True):
             nsca_results_list)  # This is done to make the different datasets coherent with one another
 
         # Perform MCoA
-        mcoin = mcoa(X=ktcoa, nf=nf, tol=1e-07)
+        multiple_co_inertia = mcoa(X=ktcoa, nf=nf)
 
         # Scale the results dxs
-        # tab, attributes = scalewt(mcoin['Tco'], ktcoa['column_weight'], center=False, scale=True)
+        # tab, attributes = scalewt(multiple_co_inertia['Tco'], ktcoa['column_weight'], center=False, scale=True)
         # col_names = [f'Axis{i + 1}' for i in range(tab.shape[1])]
         # tab.columns = col_names
 
         # Assign relevant values to mcoin
-        mcoin['Tlw'] = ktcoa['column_weight']
-        mcoin['Tcw'] = ktcoa['row_weight']
-        mcoin['blo'] = ktcoa['blocks']
-        # mcoin['Tc1'] = tab
-        mcoin['RV'] = RV
+        multiple_co_inertia['Tlw'] = ktcoa['column_weight']
+        multiple_co_inertia['Tcw'] = ktcoa['row_weight']
+        multiple_co_inertia['blo'] = ktcoa['blocks']
+        # multiple_co_inertia['Tc1'] = tab
+        multiple_co_inertia['RV'] = RV
 
         # Return results
-        mciares = {'mcoa': mcoin, 'coa': nsca_results_list}
-        return mciares
+        multiple_co_inertia_result = {'mcoa': multiple_co_inertia, 'coa': nsca_results_list}
+        return multiple_co_inertia_result
 
 
 def complete_dudi(dudi, nf1, nf2):
@@ -514,9 +511,6 @@ def complete_dudi(dudi, nf1, nf2):
     Returns:
     - dict: The updated DUDI result with additional zero-filled columns.
     """
-
-    # Calculate the number of zero-filled columns required
-    pcolzero = nf2 - nf1 + 1
 
     # A helper function to create a zero-filled DataFrame with custom columns
     def create_zero_df(rows, nf_start, nf_end):
@@ -546,7 +540,7 @@ def complete_dudi(dudi, nf1, nf2):
     return dudi
 
 
-def normalize_per_block(scorcol, nbloc, indicablo, veclev, tol=1e-7):
+def normalize_per_block(scorcol, number_of_blocks, block_indicator, veclev, tol=1e-7):
     """
     Normalize `scorcol` by block, based on the block indicators `indicablo`
     and the unique block levels `veclev`.
@@ -562,14 +556,14 @@ def normalize_per_block(scorcol, nbloc, indicablo, veclev, tol=1e-7):
     Returns:
     - np.array, the normalized `scorcol`.
     """
-    for i in range(nbloc):
-        block_values = scorcol[indicablo == veclev[i]]
+    for i in range(number_of_blocks):
+        block_values = scorcol[block_indicator == veclev[i]]
         block_norm = np.sqrt(np.sum(block_values ** 2))
 
         if block_norm > tol:
             block_values /= block_norm
 
-        scorcol[indicablo == veclev[i]] = block_values
+        scorcol[block_indicator == veclev[i]] = block_values
 
     return scorcol
 
@@ -604,7 +598,6 @@ def recalculate(tab, scorcol, nbloc, indicablo, veclev):
     return pd.DataFrame(tab_np, columns=tab.columns)
 
 
-
 def sepan(data, nf=2):
     """
     Compute successive eigenanalysis of partitioned data.
@@ -628,7 +621,7 @@ def sepan(data, nf=2):
     j1 = 0
     j2 = list(blo.values())[0]
 
-    auxi = as_dudi(data[0], col_w=cw[j1:j2], row_w=lw, nf=nf, scannf=False, type="sepan")
+    auxi = as_dudi(data[0], col_w=cw[j1:j2], row_w=lw, nf=nf, class_type="sepan")
 
     if auxi['factor_numbers'] < nf:
         auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
@@ -639,8 +632,7 @@ def sepan(data, nf=2):
     C1 = auxi['component_scores']
     L1 = auxi['row_coordinates']
 
-    rank = []
-    rank.append(auxi['rank'])
+    rank = [auxi['rank']]
 
     mapping = {
         'principal_coordinates': 'Co',
@@ -656,7 +648,7 @@ def sepan(data, nf=2):
         j1 = j2
         j2 = j2 + blo[block_key]
         tab = data[i]
-        auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf, scannf=False)
+        auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf)
 
         # Append values to the respective lists
         Eig.extend(auxi['eigenvalues'].tolist())
@@ -711,8 +703,7 @@ def ktab_util_names(x):
     - dict: A dictionary containing the row, column, and tab utility names. If 'kcoinertia' is in x['class'],
             an additional 'Trow' key-value pair is returned.
     """
-    # Generate row names
-    w = x['row.names']
+
     suffixes = [f"df{i + 1}" for i, t_val in enumerate(x['TL']['T'].unique())]
     row_names = []
 
@@ -730,23 +721,22 @@ def ktab_util_names(x):
         col_names.extend([f"{key}.{suffix}" for key in sublist])
 
     w = x['tab.names']
-    l0 = len(w)
-    tab_names = list()
+    tab_names_ktab = list()
 
     # Repeat the entire array 'w' 4 times
     # todo Check this with higher number of dataset
     for i in range(len(w)):
         for k in range(1, 5):
-            tab_names.append(f"{w[i]}.{k}")
+            tab_names_ktab.append(f"{w[i]}.{k}")
 
     # Check for 'kcoinertia' class
     if 'kcoinertia' not in x['class']:
-        return {'row': row_names, 'col': col_names, 'tab': tab_names}
+        return {'row': row_names, 'col': col_names, 'tab': tab_names_ktab}
 
     # For 'kcoinertia' class, generate Trow names
     trow_names = [f"{i}.{j}" for i, count in zip(x['tab.names'], x['supblo']) for j in x['supX'][:count]]
 
-    return {'row': row_names, 'col': col_names, 'tab': tab_names, 'Trow': trow_names}
+    return {'row': row_names, 'col': col_names, 'tab': tab_names_ktab, 'Trow': trow_names}
 
 
 def tab_names(x, value):
@@ -786,9 +776,7 @@ def tab_names(x, value):
     return x
 
 
-def mcoa(X, option=None, nf=3, tol=1e-07):
-    start_time = time.time()
-
+def mcoa(X, option=None, nf=3):
     if option is None:
         option = ["inertia", "lambda1", "uniform", "internal"]
     if X.get('class') != "ktab":
@@ -806,7 +794,9 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     nbloc = len(X['blocks'])
     indicablo = X['TC']['T']
     veclev = sorted(list(set(X['TC']['T'])))
-    #todo somehow this (the sorted argument) fixes the problem that sometimes the analysis order are swapped, causing wrong results. This is present somehow only in tests, but it seems like it's not a problem for a normal call of the functions. Will try to dive deeper into it after
+    #  todo: somehow this (the sorted argument) fixes the problem that sometimes the analysis order are swapped,
+    #  causing wrong results. This is present somehow only in tests, but it seems like it's not a problem for a
+    #  normal call of the functions. Will try to dive deeper into it after
     Xsepan = sepan(X, nf=4)  # This is used to calculate the component scores factor scores for each data
 
     rank_fac = list(np.repeat(range(1, nbloc + 1), Xsepan["rank"]))
@@ -843,7 +833,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     The call of two sepan functions, one with the non weighted dataset and the other with the weighted tables 
     is done so that the contributions of each datasets are balanced, so that the co-inertia structure better reflects
     shared patterns of the different datasets, not just patterns from the most variable dataset.
-    Basically this is calculating \( X^† = [w^{\frac{1}{2}}_1 X_1, w^{\frac{1}{2}}_2 X_2, \dots, w^{\frac{1}{2}}_K X_K] \
+    Basically this is calculating \( X^† = [w^{\frac{1}{2}}_1 X_1, w^{\frac{1}{2}}_2 X_2, \dots, w^{\frac{1}{2}}_K X_K]\
 
     '''
 
@@ -863,15 +853,17 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
 
     '''
     This is used to perform combined row and column weighting transformations to the data.
-    The row weights, represented by \(D^{1/2}\), are multiplied with the data to adjust the influence of each row (sample) 
-    in the final analysis. This ensures that each row's contributions are scaled according to its importance or frequency.
+    The row weights, represented by \(D^{1/2}\), are multiplied with the data to adjust the influence 
+    of each row (sample) in the final analysis. 
+    This ensures that each row's contributions are scaled according to its importance or frequency.
 
-    The column weights, represented by \(Q^{1/2}_k\), are multiplied with the data to adjust the influence of each column (feature)
-    in the corresponding data block \(X_k\). This accounts for variable importance, scaling, or measurement units, ensuring that 
+    The column weights, represented by \(Q^{1/2}_k\), are multiplied with the data to adjust the influence 
+    of each column (feature) in the corresponding data block \(X_k\). 
+    This accounts for variable importance, scaling, or measurement units, ensuring that 
     each feature's contribution is balanced when combined with other datasets.
 
-    These operations transform each data block \(X_k\) into \(\tilde{X}_k = w_k^{1/2} D^{1/2} X_k Q_k^{1/2}\), as per the 
-    This results in a weighted dataset that is used in the subsequent optimization problem.
+    These operations transform each data block \(X_k\) into \(\tilde{X}_k = w_k^{1/2} D^{1/2} X_k Q_k^{1/2}\),
+    as per the This results in a weighted dataset that is used in the subsequent optimization problem.
     '''
 
     tab = tab.mul(np.sqrt(lw), axis=0)
@@ -892,7 +884,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     limiting the number of singular vectors/values to a maximum of 20.
     '''
 
-    nfprovi = min(20, nlig, ncol)   #todo: This is the slow part
+    nfprovi = min(20, nlig, ncol)  # todo: This is the slow part
     # Perform SVD computations
     for i in range(nfprovi):
         '''
@@ -914,7 +906,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         # Extract the first column of u and normalize by the square root of lw (row_weights)
         normalized_u = u[:, 0] / np.sqrt(lw)
         compogene.append(normalized_u)  # Append to the list of compogene
-
 
         # Extract the first column of vt (v transposed in SVD), then normalize it
         normalized_v = normalize_per_block(vt[0, :], nbloc, indicablo, veclev)
@@ -938,7 +929,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         singular_value = np.array([s[0]])
         valsing = np.concatenate([valsing, singular_value]) if valsing is not None else singular_value
 
-
     # Squaring the valsing to get pseudo eigenvalues
     pseudo_eigenvalues = valsing ** 2
 
@@ -946,8 +936,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     if nf <= 0:
         nf = 2
 
-    acom = {}
-    acom['pseudo_eigenvalues'] = pseudo_eigenvalues
+    acom = {'pseudo_eigenvalues': pseudo_eigenvalues}
     rank_fac = np.array(rank_fac)
     lambda_matrix = np.zeros((nbloc, nf))
 
@@ -971,13 +960,13 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     acom['lambda'] = lambda_df
 
     # Create a DataFrame for synthesized variables
-    syn_var_df = pd.DataFrame(np.array(compogene).T[:, :nf]) # should contain the v_k
+    syn_var_df = pd.DataFrame(np.array(compogene).T[:, :nf])  # should contain the v_k
     syn_var_df.columns = [f'SynVar{i}' for i in range(1, nf + 1)]
     syn_var_df.index = X['row.names']
     acom['SynVar'] = syn_var_df
 
     # Create a DataFrame for axes
-    axis_df = pd.DataFrame(np.array(uknorme).T[:, :nf]) # uknorme should be the u_k
+    axis_df = pd.DataFrame(np.array(uknorme).T[:, :nf])  # uknorme should be the u_k
     axis_df.columns = [f'Axis{i}' for i in range(1, nf + 1)]
     axis_df.index = auxinames['col']
     acom['axis'] = axis_df
@@ -994,7 +983,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     # Start iterating over blocks.
     for k in range(nbloc):
         # Update the slice pointers.
-        i1 = i2
         i2 = i2 + nlig
 
         # Create a mask for extracting data of the current block.
@@ -1073,7 +1061,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     # Create DataFrame for adjusted w and store it as Tl1 in acom
     w_df = pd.DataFrame(w, index=auxinames['row'])
     w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
-    acom['Tl1'] = w_df # a normalized and re-scaled version of Tli
+    acom['Tl1'] = w_df  # a normalized and re-scaled version of Tli
 
     w = np.zeros((ncol, nf))
     i2 = 0
@@ -1096,14 +1084,14 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     var_names = []
     w = np.zeros((nbloc * 4, nf))
     i2 = 0
-    indicablo_reset = indicablo.reset_index(drop=True)
+    block_indices = indicablo.reset_index(drop=True)
 
     # Iterate over blocks to update w and var.names based on axis and Xsepan
     for k in range(nbloc):
         i1 = i2 + 1
         i2 = i2 + 4
 
-        bool_filter = indicablo_reset == veclev[k]
+        bool_filter = block_indices == veclev[k]
 
         urk = acom['axis'].reset_index(drop=True)[bool_filter].values
         tab = Xsepan['component_scores'].reset_index(drop=True)[bool_filter].values
@@ -1112,7 +1100,8 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         urk = urk * filtered_cw
         tab = tab.T.dot(urk)
         tab = np.nan_to_num(
-            tab)  # todo Check that this does not give error. The result for two datasets works, but could be a hard coding. The concept is that this function produced NaN instead of 0.00000, must be checked.
+            tab)  # todo Check that this does not give error. The result for two datasets works, but could be a hard
+        # coding. The concept is that this function produced NaN instead of 0.00000, must be checked.
 
         for i in range(min(nf, 4)):
             if tab[i, i] < 0:
@@ -1121,7 +1110,6 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         w[i1 - 1:i2, :] = tab
         var_names.extend([f"{Xsepan['tab_names'][k]}.a{str(i + 1)}" for i in range(4)])
 
-    # Create DataFrame for w and store it as Tax in acom
     w_df = pd.DataFrame(w, index=auxinames['tab'])
     w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
     acom['Tax'] = w_df
@@ -1134,4 +1122,3 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
     acom['class'] = 'mcoa'
 
     return acom
-

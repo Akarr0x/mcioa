@@ -183,17 +183,17 @@ def test_mcia_tl1():
 
 import numpy as np
 
-def test_mcia_random_datasets():
+def test_mcia_random_datasets_time():
     import time
     start = time.time()
 
     # Building dataset1 with 1000 observations and positive numbers
-    dataset1_values = np.random.randint(1, 1000, size=(1000, 1000)) # Adjust the range as needed
-    gene_names = [f"Gene_{i}" for i in range(1, 1001)]
+    dataset1_values = np.random.randint(1, 1000, size=(2000, 2000)) # Adjust the range as needed
+    gene_names = [f"Gene_{i}" for i in range(1, 2001)]
     dataset1 = pd.DataFrame(dataset1_values, columns=gene_names)
 
     # Building dataset2 with 1000 observations and positive numbers
-    dataset2_values = np.random.randint(1, 1000, size=(1000, 1000)) # Adjust the range as needed
+    dataset2_values = np.random.randint(1, 1000, size=(2000, 2000)) # Adjust the range as needed
     dataset2 = pd.DataFrame(dataset2_values, columns=gene_names)
 
     data_list = [dataset1, dataset2]
