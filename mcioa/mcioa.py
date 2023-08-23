@@ -899,7 +899,7 @@ def mcoa(X, option=None, nf=3, tol=1e-07):
         where U and V are orthogonal matrices and \(\Sigma\) is a diagonal matrix with singular values.
         '''
 
-        truncated_svd = TruncatedSVD(n_components=10)
+        truncated_svd = TruncatedSVD(n_components=5)
         u = truncated_svd.fit_transform(tab)
         s = truncated_svd.singular_values_
         vt = truncated_svd.components_
