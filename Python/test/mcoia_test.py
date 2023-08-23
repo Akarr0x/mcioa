@@ -2,7 +2,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-sys.path.append('/Users/alessandrodiamanti/Desktop/Tesi max planck/Python/mcioa')
+sys.path.append('/Users/alessandrodiamanti/Desktop/Tesi max planck/Python/mcoia')
 from mcoia.mcoia import mcia
 np.random.seed(0)
 

@@ -7,7 +7,7 @@ import time
 from sklearn.decomposition import TruncatedSVD
 np.random.seed(0)
 
-# todo: Remove future warnings
+# todo: Remove future warnings s
 
 def get_data(dataset):
     """
