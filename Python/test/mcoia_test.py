@@ -1,9 +1,10 @@
 import sys
 import numpy as np
 import pandas as pd
+import pytest
 
 sys.path.append('/Users/alessandrodiamanti/Desktop/Tesi max planck/Python/mcoia')
-from mcoia.mcoia import mcia
+from mcoia import mcia
 np.random.seed(0)
 
 def test_mcia():
@@ -187,12 +188,12 @@ def test_mcia_random_datasets():
     start = time.time()
 
     # Building dataset1 with 1000 observations and positive numbers
-    dataset1_values = np.random.randint(1, 2000, size=(2000, 2000)) # Adjust the range as needed
-    gene_names = [f"Gene_{i}" for i in range(1, 2001)]
+    dataset1_values = np.random.randint(1, 1000, size=(1000, 1000)) # Adjust the range as needed
+    gene_names = [f"Gene_{i}" for i in range(1, 1001)]
     dataset1 = pd.DataFrame(dataset1_values, columns=gene_names)
 
     # Building dataset2 with 1000 observations and positive numbers
-    dataset2_values = np.random.randint(1, 2000, size=(2000, 2000)) # Adjust the range as needed
+    dataset2_values = np.random.randint(1, 1000, size=(1000, 1000)) # Adjust the range as needed
     dataset2 = pd.DataFrame(dataset2_values, columns=gene_names)
 
     data_list = [dataset1, dataset2]
@@ -200,3 +201,4 @@ def test_mcia_random_datasets():
     # Call the mcia function (you should define this function elsewhere in your code)
     result = mcia(data_list)
     print(time.time() - start)
+
