@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.append('/Users/alessandrodiamanti/Desktop/Tesi max planck/Python/mcioa')
-from mcioa.mcioa import mcia
+from mcoia.mcoia import mcia
 np.random.seed(0)
 
 def test_mcia():
