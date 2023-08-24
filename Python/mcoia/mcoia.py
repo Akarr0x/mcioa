@@ -154,7 +154,7 @@ def as_dudi(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=T
         else:
             X = df.T.values
 
-        truncated = TruncatedSVD(n_components=nf, tol=tol)
+        truncated = TruncatedSVD(n_components=min(lig, col), tol=tol)
         truncated.fit(X)
         eig_values = truncated.singular_values_ ** 2
         eig_vectors = truncated.components_.T if not transpose else truncated.transform(X)
@@ -476,27 +476,8 @@ def mcia(dataset, nf=2, nsc=True):
 
         # Compile tables for analysis
         nsca_results_list = list(nsca_results.values())
-        ktcoa = compile_tables(
-            nsca_results_list)  # This is done to make the different datasets coherent with one another
 
-        # Perform MCoA
-        multiple_co_inertia = mcoa(X=ktcoa, nf=nf)
-
-        # Scale the results dxs
-        # tab, attributes = scalewt(multiple_co_inertia['Tco'], ktcoa['column_weight'], center=False, scale=True)
-        # col_names = [f'Axis{i + 1}' for i in range(tab.shape[1])]
-        # tab.columns = col_names
-
-        # Assign relevant values to mcoin
-        multiple_co_inertia['Tlw'] = ktcoa['column_weight']
-        multiple_co_inertia['Tcw'] = ktcoa['row_weight']
-        multiple_co_inertia['blo'] = ktcoa['blocks']
-        # multiple_co_inertia['Tc1'] = tab
-        multiple_co_inertia['RV'] = RV
-
-        # Return results
-        multiple_co_inertia_result = {'mcoa': multiple_co_inertia, 'coa': nsca_results_list}
-        return multiple_co_inertia_result
+        return nsca_results_list
 
 
 def complete_dudi(dudi, nf1, nf2):
@@ -598,7 +579,7 @@ def recalculate(tab, scorcol, nbloc, indicablo, veclev):
     return pd.DataFrame(tab_np, columns=tab.columns)
 
 
-def sepan(data, nf=2):
+def sepan(data, nf=20):
     """
     Compute successive eigenanalysis of partitioned data.
 
@@ -804,6 +785,8 @@ def mcoa(X, option=None, nf=3):
     auxinames = ktab_util_names(X)
     sums = {}
 
+
+
     if option == "lambda1":
         tabw = [1 / Xsepan["eigenvalues"][rank_fac[i - 1]][0] for i in range(1, nbloc + 1)]
     elif option == "inertia":
@@ -851,6 +834,7 @@ def mcoa(X, option=None, nf=3):
     # Assign the names of the columns of tab from auxinames['col']
     tab.columns = auxinames['col']
 
+
     '''
     This is used to perform combined row and column weighting transformations to the data.
     The row weights, represented by \(D^{1/2}\), are multiplied with the data to adjust the influence 
@@ -867,9 +851,7 @@ def mcoa(X, option=None, nf=3):
     '''
 
     tab = tab.mul(np.sqrt(lw), axis=0)
-
     tab = tab.mul(np.sqrt(cw), axis=1)
-
     '''
     Initialization for upcoming calculations.
     compogene and uknorme are lists that will hold computation results, 
@@ -884,7 +866,7 @@ def mcoa(X, option=None, nf=3):
     limiting the number of singular vectors/values to a maximum of 20.
     '''
 
-    nfprovi = min(20, nlig, ncol)  # todo: This is the slow part
+    nfprovi = min(20, nlig, ncol)
     # Perform SVD computations
     for i in range(nfprovi):
         '''
@@ -894,10 +876,11 @@ def mcoa(X, option=None, nf=3):
         where U and V are orthogonal matrices and \(\Sigma\) is a diagonal matrix with singular values.
         '''
 
-        truncated_svd = TruncatedSVD(n_components=5)
+        truncated_svd = TruncatedSVD(n_components=nfprovi)
         u = truncated_svd.fit_transform(tab)
         s = truncated_svd.singular_values_
         vt = truncated_svd.components_
+        u = u/s
 
         '''
         Theese two normalization align with the constraint a^t a = 1 abd b^t b = 1, considering the 
@@ -928,7 +911,6 @@ def mcoa(X, option=None, nf=3):
         # Extract the first singular value
         singular_value = np.array([s[0]])
         valsing = np.concatenate([valsing, singular_value]) if valsing is not None else singular_value
-
     # Squaring the valsing to get pseudo eigenvalues
     pseudo_eigenvalues = valsing ** 2
 
@@ -939,7 +921,6 @@ def mcoa(X, option=None, nf=3):
     acom = {'pseudo_eigenvalues': pseudo_eigenvalues}
     rank_fac = np.array(rank_fac)
     lambda_matrix = np.zeros((nbloc, nf))
-
     for i in range(1, nbloc + 1):
         mask = (rank_fac == i)
 
@@ -1065,7 +1046,6 @@ def mcoa(X, option=None, nf=3):
 
     w = np.zeros((ncol, nf))
     i2 = 0
-
     # Iterate over blocks to update w based on SynVar and lw
     for k in range(nbloc):
         i1 = i2 + 1
