@@ -883,8 +883,16 @@ def mcoa(X, option=None, nf=3):
         u = u/s
 
         '''
-        Theese two normalization align with the constraint a^t a = 1 abd b^t b = 1, considering the 
-        'normalized_u' as  the b_k 
+        We extract the first column of U and the first row of V^T for a couple of key reasons:
+
+        1. The first column of U (u[:, 0]) captures the most "effective" linear combination of rows 
+           (e.g., genes in a gene expression dataset) in representing the original data.
+
+        2. Similarly, the first row of V^T (vt[0, :]) captures the most "effective" linear combination of columns 
+           (e.g., samples or cells in a gene expression dataset) in representing the original data.
+
+        In essence, these vectors are the principal axes that maximize the variance in the data and are used 
+        for the projections.
         '''
         # Extract the first column of u and normalize by the square root of lw (row_weights)
         normalized_u = u[:, 0] / np.sqrt(lw)
@@ -941,13 +949,13 @@ def mcoa(X, option=None, nf=3):
     acom['lambda'] = lambda_df
 
     # Create a DataFrame for synthesized variables
-    syn_var_df = pd.DataFrame(np.array(compogene).T[:, :nf])  # should contain the v_k
+    syn_var_df = pd.DataFrame(np.array(compogene).T[:, :nf])  # should contain the u_k
     syn_var_df.columns = [f'SynVar{i}' for i in range(1, nf + 1)]
     syn_var_df.index = X['row.names']
     acom['SynVar'] = syn_var_df
 
     # Create a DataFrame for axes
-    axis_df = pd.DataFrame(np.array(uknorme).T[:, :nf])  # uknorme should be the u_k
+    axis_df = pd.DataFrame(np.array(uknorme).T[:, :nf])  # uknorme should be the v_k
     axis_df.columns = [f'Axis{i}' for i in range(1, nf + 1)]
     axis_df.index = auxinames['col']
     acom['axis'] = axis_df
@@ -973,7 +981,7 @@ def mcoa(X, option=None, nf=3):
         Fetch the computed v_k values for the current block. 
         Mathematically:
         v_k = the kth vector from the right singular matrix corresponding to the kth block.
-        After the weight multiplication we can see that this is equal to a_k = Q^1/2_k u_k
+        After the weight multiplication we can see that this is equal to  QV
         '''
         vk = acom['axis'].reset_index(drop=True).loc[mask].values
         tab = np.array(X[k])
@@ -985,7 +993,7 @@ def mcoa(X, option=None, nf=3):
         Compute the product of the data matrix for the block and the weighted v_k values.
         This operation gives a projection of the data onto the direction of v_k.
         Mathematically:
-        projection_k = X_k * a_k
+        projection_k = X_k * QV
         '''
         projection = tab @ vk
 
@@ -999,7 +1007,7 @@ def mcoa(X, option=None, nf=3):
         This operation ensures that the resulting values are in terms of how much they align 
         with the primary singular vectors. Then, it's scaled further using row weights.
         Mathematically:
-        scaled_data = (projection_k * v) * D.
+        scaled_data = (projection_k * u) * D.
         '''
         scaled_data = (projection * acom['SynVar'].values) * lw.reshape(-1, 1)
 
@@ -1014,8 +1022,7 @@ def mcoa(X, option=None, nf=3):
     w_df = pd.DataFrame(w, index=auxinames['row'])
     w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
     '''
-    Since w is deifned as X_k * a_k and a_k is just a weighted u_k this should be the projection in the new space
-    define by u_k
+    w is defined as X_k * VQ
     '''
     acom['Tli'] = w_df
 
