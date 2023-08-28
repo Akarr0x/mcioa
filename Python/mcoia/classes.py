@@ -21,6 +21,7 @@ class MCIAnalysis:
         self.row_weight = []
         self.eigenvalues = []
         self.rank = []
+        self.row_names = []
         self.factor_numbers = []
         self.component_scores = []
         self.row_coordinates = []
@@ -69,7 +70,6 @@ class MCIAnalysis:
     def transform(self):
         if self.multiple_co_inertia_result is not None:
             ktcoa = compile_tables(self.multiple_co_inertia_result)
-
             self.ktcoa = ktcoa
 
             return True
