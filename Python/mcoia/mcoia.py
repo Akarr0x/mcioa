@@ -147,14 +147,17 @@ def as_dudi(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=T
     df_ori = df.copy()
     df = df.multiply(np.sqrt(row_w), axis=0)
     df = df.multiply(np.sqrt(col_w), axis=1)
-
+    if (lig != col):
+        SVD = False
     if SVD:
         if not transpose:
             X = df.values
+            n_components = col
         else:
             X = df.T.values
+            n_components = lig
 
-        truncated = TruncatedSVD(n_components=min(lig, col), tol=tol)
+        truncated = TruncatedSVD(n_components=n_components, tol=tol)
         truncated.fit(X)
         eig_values = truncated.singular_values_ ** 2
         eig_vectors = truncated.components_.T if not transpose else truncated.transform(X)
@@ -196,7 +199,7 @@ def as_dudi(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=T
         res['row_coordinates'] = res['factor_scores'].div(eigen_sqrt[::-1])  # This is the principal components (K)
     else:
         row_w_sqrt_rec = 1 / np.sqrt(row_w)
-        row_coordinates = eig_vectors[:, -nf:] * row_w_sqrt_rec.to_numpy().reshape(-1, 1)
+        row_coordinates = eig_vectors[:, -nf:] * row_w_sqrt_rec.reshape(-1, 1)
         principal_coordinates = (df.T.multiply(res['row_weight'], axis='columns') @ row_coordinates).T
         res['row_coordinates'] = pd.DataFrame(row_coordinates, columns=[f'RS{i + 1}' for i in range(nf)])
         res['principal_coordinates'] = pd.DataFrame(principal_coordinates, columns=[f'Comp{i + 1}' for i in range(nf)])
@@ -294,17 +297,14 @@ def add_factor_to_ktab(ktab_dict):
     TL_df = pd.DataFrame({'T': T_factor, 'L': L_factor})  # Combine into a DataFrame
     ktab_dict['TL'] = TL_df
 
-    # Construct a sequence for each block size
-    sequence = None
-    for block_size in block_sizes:
-        if sequence is None:
-            sequence = np.arange(1, block_size + 1)
-        else:
-            sequence = np.append(sequence, np.arange(1, block_size + 1))
+    # todo: Tomorrow check this, but right now let's fix it like this, cause col_names is not right!
 
-    # Construct the 'T' and 'C' factors
-    T_factor = np.repeat(block_names, num_rows)  # Repeat each block name for each row
-    C_factor = np.tile(col_names[0], num_blocks)  # Repeat the first column name for each block
+    T_factor = np.repeat(block_names, block_sizes)  # Repeat each block name for each row in that block
+    C_factor = np.concatenate(col_names)
+
+    print("Length of T_factor:", len(T_factor))
+    print("Length of C_factor:", len(C_factor))
+
     TC_df = pd.DataFrame({'T': T_factor, 'C': C_factor})  # Combine into a DataFrame
     ktab_dict['TC'] = TC_df
 

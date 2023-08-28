@@ -230,6 +230,7 @@ def test_mcia_tco():
         [54, 45, 67, 65, 34, 54, 23, 65, 23, 34],
         [23, 65, 34, 23, 23, 65, 54, 43, 23, 43],
         [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
     ]
 
     dataset2_values = [
@@ -243,12 +244,14 @@ def test_mcia_tco():
         [34, 23, 43, 56, 34, 23, 65, 34, 67, 23],
         [45, 65, 23, 45, 23, 54, 43, 23, 45, 67],
         [56, 43, 23, 34, 65, 23, 54, 56, 43, 45],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
     ]
-    gene_names = [f"Gene_{i}" for i in range(1, 11)]
+    gene_names = [f"Gene_{i}" for i in range(1, 12)]
+    col_names = [f"Cell_{i}" for i in range(1, 11)]
 
     # Create DataFrames
-    dataset1 = pd.DataFrame(dataset1_values, columns=gene_names, index=gene_names)
-    dataset2 = pd.DataFrame(dataset2_values, columns=gene_names, index=gene_names)
+    dataset1 = pd.DataFrame(dataset1_values, columns=col_names, index=gene_names)
+    dataset2 = pd.DataFrame(dataset2_values, columns=col_names, index=gene_names)
 
     data_list = [dataset1, dataset2]
 
@@ -315,3 +318,26 @@ def test_mcia_random_datasets_time():
 
     print(time.time() - start)
 
+
+
+def test_mcia_random_datasets_time_2():
+    import time
+    start = time.time()
+
+    dataset1_values = np.random.randint(0, 50, size=(150, 100))
+    gene_names = [f"Gene_{i}" for i in range(1, 101)]
+    dataset1 = pd.DataFrame(dataset1_values, columns=gene_names)
+
+    dataset2_values = np.random.randint(0, 50, size=(150, 100))
+    dataset2 = pd.DataFrame(dataset2_values, columns=gene_names)
+
+    data_list = [dataset1, dataset2]
+
+    mcia_instance = MCIAnalysis(data_list)
+
+    mcia_instance.fit()
+    mcia_instance.transform()
+    mcia_instance.results()
+
+    elapsed_time = time.time() - start
+    print(f"Time elapsed: {elapsed_time} seconds")
