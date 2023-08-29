@@ -147,8 +147,7 @@ def as_dudi(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=T
     df_ori = df.copy()
     df = df.multiply(np.sqrt(row_w), axis=0)
     df = df.multiply(np.sqrt(col_w), axis=1)
-    if (lig != col):
-        SVD = False
+
     if SVD:
         if not transpose:
             X = df.values
@@ -160,7 +159,7 @@ def as_dudi(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=T
         truncated = TruncatedSVD(n_components=n_components, tol=tol)
         truncated.fit(X)
         eig_values = truncated.singular_values_ ** 2
-        eig_vectors = truncated.components_.T if not transpose else truncated.transform(X)
+        eig_vectors = truncated.components_.T if not transpose else truncated.components_
 
     else:
         if not transpose:
@@ -195,14 +194,17 @@ def as_dudi(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=T
                                                columns=[f'CS{i + 1}' for i in range(nf)])  # principal axes (A)
         res['factor_scores'] = factor_scores
         res['factor_scores'].columns = [f'Axis{i + 1}' for i in range(nf)]  # row scores (L)
-        res['principal_coordinates'] = res['component_scores'].multiply(eigen_sqrt[::-1])  # This is the column score (C)
+        res['principal_coordinates'] = res['component_scores'].multiply(
+            eigen_sqrt[::-1])  # This is the column score (C)
         res['row_coordinates'] = res['factor_scores'].div(eigen_sqrt[::-1])  # This is the principal components (K)
     else:
         row_w_sqrt_rec = 1 / np.sqrt(row_w)
-        row_coordinates = eig_vectors[:, -nf:] * row_w_sqrt_rec.reshape(-1, 1)
-        principal_coordinates = (df.T.multiply(res['row_weight'], axis='columns') @ row_coordinates).T
+        row_coordinates = np.array(pd.DataFrame(eig_vectors.T).iloc[:, :nf] * row_w_sqrt_rec.reshape(-1, 1))
+        factor_scores = df_ori.T.multiply(res['row_weight'], axis=1)
+        factor_scores = pd.DataFrame(
+            factor_scores.values @ row_coordinates)
         res['row_coordinates'] = pd.DataFrame(row_coordinates, columns=[f'RS{i + 1}' for i in range(nf)])
-        res['principal_coordinates'] = pd.DataFrame(principal_coordinates, columns=[f'Comp{i + 1}' for i in range(nf)])
+        res['principal_coordinates'] = pd.DataFrame(factor_scores, columns=[f'Comp{i + 1}' for i in range(nf)])
         res['factor_scores'] = res['row_coordinates'].multiply(eigen_sqrt[::-1])
         res['component_scores'] = res['principal_coordinates'].div(eigen_sqrt[::-1])
 
@@ -221,7 +223,8 @@ def rv(m1, m2):
     normed_scm1 = m1.T @ m1
     normed_scm2 = m2.T @ m2
     # Calculate the RV coefficient using the formula.
-    rv_index = np.sum(normed_scm1 * normed_scm2) / np.sqrt(np.sum(normed_scm1 * normed_scm2) * np.sum(normed_scm2 * normed_scm2))
+    rv_index = np.sum(normed_scm1 * normed_scm2) / np.sqrt(
+        np.sum(normed_scm1 * normed_scm2) * np.sum(normed_scm2 * normed_scm2))
     return rv_index
 
 
@@ -301,9 +304,6 @@ def add_factor_to_ktab(ktab_dict):
 
     T_factor = np.repeat(block_names, block_sizes)  # Repeat each block name for each row in that block
     C_factor = np.concatenate(col_names)
-
-    print("Length of T_factor:", len(T_factor))
-    print("Length of C_factor:", len(C_factor))
 
     TC_df = pd.DataFrame({'T': T_factor, 'C': C_factor})  # Combine into a DataFrame
     ktab_dict['TC'] = TC_df
@@ -785,8 +785,6 @@ def mcoa(X, option=None, nf=3):
     auxinames = ktab_util_names(X)
     sums = {}
 
-
-
     if option == "lambda1":
         tabw = [1 / Xsepan["eigenvalues"][rank_fac[i - 1]][0] for i in range(1, nbloc + 1)]
     elif option == "inertia":
@@ -834,7 +832,6 @@ def mcoa(X, option=None, nf=3):
     # Assign the names of the columns of tab from auxinames['col']
     tab.columns = auxinames['col']
 
-
     '''
     This is used to perform combined row and column weighting transformations to the data.
     The row weights, represented by \(D^{1/2}\), are multiplied with the data to adjust the influence 
@@ -880,7 +877,7 @@ def mcoa(X, option=None, nf=3):
         u = truncated_svd.fit_transform(tab)
         s = truncated_svd.singular_values_
         vt = truncated_svd.components_
-        u = u/s
+        u = u / s
 
         '''
         We extract the first column of U and the first row of V^T for a couple of key reasons:
