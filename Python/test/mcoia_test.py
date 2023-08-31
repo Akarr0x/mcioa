@@ -2,10 +2,12 @@ import sys
 import numpy as np
 import pandas as pd
 import pytest
+import matplotlib.pyplot as plt
 
 sys.path.append('/Users/alessandrodiamanti/Desktop/Tesi max planck/Python/mcoia')
 from mcoia import mcia
 from classes import MCIAnalysis
+
 np.random.seed(0)
 
 def test_mcia_tli():
@@ -264,7 +266,6 @@ def test_mcia_tco():
     mcia_instance.results()
 
     tco_result = mcia_instance.Tco
-
     # Define the expected result
     expected_result_data = {
         'SV1': [
@@ -343,3 +344,241 @@ def test_mcia_random_datasets_time_2():
 
     elapsed_time = time.time() - start
     print(f"Time elapsed: {elapsed_time} seconds")
+
+
+
+def test_single_dataset():
+    dataset1_values = [
+        [23, 43, 65, 22, 1, 78, 34, 54, 23, 65],
+        [34, 23, 45, 65, 23, 43, 56, 67, 34, 23],
+        [45, 67, 23, 54, 23, 65, 12, 34, 54, 34],
+        [56, 43, 23, 43, 23, 54, 43, 23, 54, 54],
+        [67, 65, 34, 65, 12, 43, 34, 65, 23, 12],
+        [34, 23, 65, 34, 23, 54, 23, 54, 65, 65],
+        [43, 56, 23, 43, 34, 65, 43, 23, 54, 23],
+        [54, 45, 67, 65, 34, 54, 23, 65, 23, 34],
+        [23, 65, 34, 23, 23, 65, 54, 43, 23, 43],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+    ]
+
+    dataset2_values = [
+        [34, 56, 23, 12, 43, 23, 34, 65, 67, 34],
+        [45, 34, 56, 54, 23, 54, 23, 54, 23, 23],
+        [65, 43, 23, 43, 34, 23, 54, 43, 34, 65],
+        [23, 12, 34, 65, 43, 65, 43, 23, 45, 56],
+        [43, 23, 65, 34, 23, 54, 34, 23, 54, 45],
+        [12, 34, 23, 43, 54, 65, 23, 54, 65, 23],
+        [23, 54, 65, 23, 23, 54, 23, 43, 54, 23],
+        [34, 23, 43, 56, 34, 23, 65, 34, 67, 23],
+        [45, 65, 23, 45, 23, 54, 43, 23, 45, 67],
+        [56, 43, 23, 34, 65, 23, 54, 56, 43, 45],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+    ]
+    gene_names = [f"Gene_{i}" for i in range(1, 12)]
+    col_names = [f"Cell_{i}" for i in range(1, 11)]
+
+    # Create DataFrames
+    dataset1 = pd.DataFrame(dataset1_values, columns=col_names, index=gene_names)
+    dataset2 = pd.DataFrame(dataset2_values, columns=col_names, index=gene_names)
+
+    data_list = [dataset1]
+
+    mcia_instance = MCIAnalysis(data_list)
+
+    mcia_instance.fit()
+
+    mcia_instance.transform()
+
+    mcia_instance.results()
+
+def test_plotting():
+    dataset1_values = [
+        [23, 43, 65, 22, 1, 78, 34, 54, 23, 65],
+        [34, 23, 45, 65, 23, 43, 56, 67, 34, 23],
+        [45, 67, 23, 54, 23, 65, 12, 34, 54, 34],
+        [56, 43, 23, 43, 23, 54, 43, 23, 54, 54],
+        [67, 65, 34, 65, 12, 43, 34, 65, 23, 12],
+        [34, 23, 65, 34, 23, 54, 23, 54, 65, 65],
+        [43, 56, 23, 43, 34, 65, 43, 23, 54, 23],
+        [54, 45, 67, 65, 34, 54, 23, 65, 23, 34],
+        [23, 65, 34, 23, 23, 65, 54, 43, 23, 43],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+    ]
+
+    dataset2_values = [
+        [34, 56, 23, 12, 43, 23, 34, 65, 67, 34],
+        [45, 34, 56, 54, 23, 54, 23, 54, 23, 23],
+        [65, 43, 23, 43, 34, 23, 54, 43, 34, 65],
+        [23, 12, 34, 65, 43, 65, 43, 23, 45, 56],
+        [43, 23, 65, 34, 23, 54, 34, 23, 54, 45],
+        [12, 34, 23, 43, 54, 65, 23, 54, 65, 23],
+        [23, 54, 65, 23, 23, 54, 23, 43, 54, 23],
+        [34, 23, 43, 56, 34, 23, 65, 34, 67, 23],
+        [45, 65, 23, 45, 23, 54, 43, 23, 45, 67],
+        [56, 43, 23, 34, 65, 23, 54, 56, 43, 45],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+    ]
+    gene_names = [f"Gene_{i}" for i in range(1, 12)]
+    col_names = [f"Cell_{i}" for i in range(1, 11)]
+
+    # Create DataFrames
+    dataset1 = pd.DataFrame(dataset1_values, columns=col_names, index=gene_names)
+    dataset2 = pd.DataFrame(dataset2_values, columns=col_names, index=gene_names)
+
+    data_list = [dataset1]
+
+    mcia_instance = MCIAnalysis(data_list)
+
+    mcia_instance.fit()
+
+    mcia_instance.transform()
+
+    mcia_instance.results()
+
+    projected = mcia_instance.project(dataset2)
+
+    import matplotlib.pyplot as plt
+
+    plt.scatter(mcia_instance.Tco['SV1'], mcia_instance.Tco['SV2'], c='blue', label='MCIA Data')
+
+    plt.scatter(projected[0], projected[1], c='red', label='Protected Data')
+
+    plt.xlabel('SV1')
+    plt.ylabel('SV2')
+    plt.title('Scatter Plot of MCIA and Protected Data')
+    plt.legend()
+
+    plt.show()
+
+
+def test_plotting_2():
+    dataset1_values = [
+        [23, 43, 65, 22, 1, 78, 34, 54, 23, 65],
+        [34, 23, 45, 65, 23, 43, 56, 67, 34, 23],
+        [45, 67, 23, 54, 23, 65, 12, 34, 54, 34],
+        [56, 43, 23, 43, 23, 54, 43, 23, 54, 54],
+        [67, 65, 34, 65, 12, 43, 34, 65, 23, 12],
+        [34, 23, 65, 34, 23, 54, 23, 54, 65, 65],
+        [43, 56, 23, 43, 34, 65, 43, 23, 54, 23],
+        [54, 45, 67, 65, 34, 54, 23, 65, 23, 34],
+        [23, 65, 34, 23, 23, 65, 54, 43, 23, 43],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+    ]
+
+    dataset2_values = [
+        [23, 43, 65, 22, 1, 78, 34, 54, 23, 65],
+        [34, 23, 45, 65, 23, 43, 56, 67, 34, 23],
+        [45, 67, 23, 54, 23, 65, 12, 34, 54, 34],
+        [56, 43, 23, 43, 23, 54, 43, 23, 54, 54],
+        [67, 65, 34, 65, 12, 43, 34, 65, 23, 12],
+        [34, 23, 65, 34, 23, 54, 23, 54, 65, 65],
+        [43, 56, 23, 43, 34, 65, 43, 23, 54, 23],
+        [54, 45, 67, 65, 34, 54, 23, 65, 23, 34],
+        [23, 65, 34, 23, 23, 65, 54, 43, 23, 43],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+    ]
+    gene_names = [f"Gene_{i}" for i in range(1, 12)]
+    col_names = [f"Cell_{i}" for i in range(1, 11)]
+
+    # Create DataFrames
+    dataset1 = pd.DataFrame(dataset1_values, columns=col_names, index=gene_names)
+    dataset2 = pd.DataFrame(dataset2_values, columns=col_names, index=gene_names)
+
+    data_list = [dataset1]
+
+    mcia_instance = MCIAnalysis(data_list)
+
+    mcia_instance.fit()
+
+    mcia_instance.transform()
+
+    mcia_instance.results()
+
+    projected = mcia_instance.project(dataset2)
+    print(projected)
+
+    import matplotlib.pyplot as plt
+
+    plt.scatter(mcia_instance.Tco['SV1'], mcia_instance.Tco['SV2'], c='blue', label='MCIA Data')
+
+    plt.scatter(projected[0]*len(gene_names), projected[1]*len(col_names), c='red', label='Projected Data') # todo:somehow this almost scales them.. need to show to clemens
+
+    plt.xlabel('SV1')
+    plt.ylabel('SV2')
+    plt.title('Scatter Plot of MCIA and Protected Data')
+    plt.legend()
+
+    plt.show()
+
+
+def test_plotting_3():
+    dataset1_values = [
+        [23, 43, 65, 22, 1, 78, 34, 54, 23, 65],
+        [34, 23, 45, 65, 23, 43, 56, 67, 34, 23],
+        [45, 67, 23, 54, 23, 65, 12, 34, 54, 34],
+        [56, 43, 23, 43, 23, 54, 43, 23, 54, 54],
+        [67, 65, 34, 65, 12, 43, 34, 65, 23, 12],
+        [34, 23, 65, 34, 23, 54, 23, 54, 65, 65],
+        [43, 56, 23, 43, 34, 65, 43, 23, 54, 23],
+        [54, 45, 67, 65, 34, 54, 23, 65, 23, 34],
+        [23, 65, 34, 23, 23, 65, 54, 43, 23, 43],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+    ]
+
+    dataset2_values = [
+        [23, 43, 65, 22, 1, 78, 34, 54, 23, 65],
+        [34, 23, 45, 65, 23, 43, 56, 67, 34, 23],
+        [45, 67, 23, 54, 23, 65, 12, 34, 54, 34],
+        [56, 43, 23, 43, 23, 54, 43, 23, 54, 54],
+        [67, 65, 34, 65, 12, 43, 34, 65, 23, 12],
+        [34, 23, 65, 34, 23, 54, 23, 54, 65, 65],
+        [43, 56, 23, 43, 34, 65, 43, 23, 54, 23],
+        [54, 45, 67, 65, 34, 54, 23, 65, 23, 34],
+        [23, 65, 34, 23, 23, 65, 54, 43, 23, 43],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+    ]
+    gene_names = [f"Gene_{i}" for i in range(1, 12)]
+    col_names = [f"Cell_{i}" for i in range(1, 11)]
+
+    # Create DataFrames
+    dataset1 = pd.DataFrame(dataset1_values, columns=col_names, index=gene_names)
+    dataset2 = pd.DataFrame(dataset2_values, columns=col_names, index=gene_names)
+
+    data_list = [dataset1]
+
+    mcia_instance = MCIAnalysis(data_list)
+
+    mcia_instance.fit()
+
+    mcia_instance.transform()
+
+    mcia_instance.results()
+
+    data_list = [dataset2]
+
+    projected = MCIAnalysis(data_list)
+
+    projected.fit()
+
+    projected.transform()
+
+    projected.results()
+
+    import matplotlib.pyplot as plt
+
+    plt.scatter(mcia_instance.Tco['SV1'], mcia_instance.Tco['SV2'], c='blue', label='MCIA Data')
+
+    plt.scatter(projected.Tco['SV1'], projected.Tco['SV2'], s = 15, c='red', label='Protected Data')
+
+    plt.xlabel('SV1')
+    plt.ylabel('SV2')
+    plt.title('Scatter Plot of MCIA and Protected Data')
+    plt.legend()
+
+    plt.show()

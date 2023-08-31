@@ -757,7 +757,7 @@ def tab_names(x, value):
     return x
 
 
-def mcoa(X, option=None, nf=3):
+def mcoa(X, option=None, nf=3, data_projected = False):
     if option is None:
         option = ["inertia", "lambda1", "uniform", "internal"]
     if X.get('class') != "ktab":
@@ -849,6 +849,10 @@ def mcoa(X, option=None, nf=3):
 
     tab = tab.mul(np.sqrt(lw), axis=0)
     tab = tab.mul(np.sqrt(cw), axis=1)
+
+    if data_projected:
+        return tab
+
     '''
     Initialization for upcoming calculations.
     compogene and uknorme are lists that will hold computation results, 

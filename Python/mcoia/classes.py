@@ -77,7 +77,11 @@ class MCIAnalysis:
             print("Please fit the model before transforming.")
             return False
 
-    def results(self):
+    def results(self, projected_dataset = False):
+
+        if projected_dataset:
+            acom = mcoa(X=self.ktcoa, nf=self.nf, data_projected=projected_dataset)
+            return acom
 
         if self.ktcoa is not None:
             acom = mcoa(X=self.ktcoa, nf=self.nf)
@@ -108,3 +112,13 @@ class MCIAnalysis:
         else:
             print("Please transform the model before getting results.")
             return False  # Indicate failure
+
+    def project(self, projected_dataset):    # Todo: There probably is something wrong here, I think they must be scaled somehow.
+        projected_dataset = MCIAnalysis([projected_dataset])
+        projected_dataset.fit()
+        projected_dataset.transform()
+        projected_dataset = projected_dataset.results(projected_dataset = True)
+        weighted_urk = np.array(self.SynVar) * np.array(self.row_weight).T
+        projected_coordinates = np.array(projected_dataset).T.dot(weighted_urk)
+        return pd.DataFrame(projected_coordinates, index=projected_dataset.columns)
+
