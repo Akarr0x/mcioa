@@ -10,6 +10,8 @@ from classes import MCIAnalysis
 
 np.random.seed(0)
 
+# Signs of SVD are arbitrary, given its properties
+
 def test_mcia_tli():
     dataset1_values = [
         [23, 43, 65, 22, 1, 78, 34, 54, 23, 65],
@@ -646,4 +648,76 @@ def test_plotting_3():
     plt.title('Scatter Plot of MCIA and Protected Data')
     plt.legend()
 
+    plt.show()
+
+
+
+def test_plotting():
+    dataset1_values = [
+        [23, 43, 65, 22, 1, 78, 34, 54, 23, 65],
+        [34, 23, 45, 65, 23, 43, 56, 67, 34, 23],
+        [45, 67, 23, 54, 23, 65, 12, 34, 54, 34],
+        [56, 43, 23, 43, 23, 54, 43, 23, 54, 54],
+        [67, 65, 34, 65, 12, 43, 34, 65, 23, 12],
+        [34, 23, 65, 34, 23, 54, 23, 54, 65, 65],
+        [43, 56, 23, 43, 34, 65, 43, 23, 54, 23],
+        [54, 45, 67, 65, 34, 54, 23, 65, 23, 34],
+        [23, 65, 34, 23, 23, 65, 54, 43, 23, 43],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+    ]
+
+    dataset2_values = [
+        [34, 56, 23, 12, 43, 23, 34, 65, 67, 34],
+        [45, 34, 56, 54, 23, 54, 23, 54, 23, 23],
+        [65, 43, 23, 43, 34, 23, 54, 43, 34, 65],
+        [23, 12, 34, 65, 43, 65, 43, 23, 45, 56],
+        [43, 23, 65, 34, 23, 54, 34, 23, 54, 45],
+        [12, 34, 23, 43, 54, 65, 23, 54, 65, 23],
+        [23, 54, 65, 23, 23, 54, 23, 43, 54, 23],
+        [34, 23, 43, 56, 34, 23, 65, 34, 67, 23],
+        [45, 65, 23, 45, 23, 54, 43, 23, 45, 67],
+        [56, 43, 23, 34, 65, 23, 54, 56, 43, 45],
+        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
+    ]
+    gene_names = [f"Gene_{i}" for i in range(1, 12)]
+    col_names = [f"Cell_{i}" for i in range(1, 11)]
+
+    # Create DataFrames
+    dataset1 = pd.DataFrame(dataset1_values, columns=col_names, index=gene_names)
+    dataset2 = pd.DataFrame(dataset2_values, columns=col_names, index=gene_names)
+
+    data_list = [dataset1, dataset2]
+
+    mcia_instance = MCIAnalysis(data_list)
+
+    mcia_instance.fit()
+
+    mcia_instance.transform()
+
+    mcia_instance.results()
+
+    import matplotlib.pyplot as plt
+
+    num_datasets = 2  # replace N with the number of datasets you want
+    chunk_size = mcia_instance.Tco.shape[0] // num_datasets
+
+    # Initialize list of lists for SV1 and SV2 values
+    x = [[] for _ in range(num_datasets)]
+    y = [[] for _ in range(num_datasets)]
+
+    # Loop through DataFrame and distribute rows to different datasets
+    for i in range(mcia_instance.Tco.shape[0]):
+        dataset_index = i // chunk_size
+        if dataset_index >= num_datasets:
+            dataset_index = num_datasets - 1  # Put any overflow rows in the last dataset
+        x[dataset_index].append(mcia_instance.Tco.iloc[i]['SV1'])
+        y[dataset_index].append(mcia_instance.Tco.iloc[i]['SV2'])
+
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax1.scatter(x[0], y[0], s=10, c="b", marker="s", label="first")
+    ax1.scatter(x[1], y[1], s=10, c="r", marker="o", label="second")
     plt.show()
