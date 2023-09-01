@@ -296,6 +296,63 @@ def test_mcia_tco():
     assert np.allclose(tco_result, expected_result, atol=1e-6)
 
 
+def test_mcia_tco_2():
+    dataset1_values = [
+        [23, 43, 65, 22, 1, 78],
+        [34, 23, 45, 65, 23, 43],
+        [45, 67, 23, 54, 23, 65],
+        [56, 43, 23, 43, 23, 54],
+        [67, 65, 34, 65, 12, 43]
+    ]
+
+    dataset2_values = [
+        [34, 56, 23, 12, 43, 23],
+        [45, 34, 56, 54, 23, 54],
+        [65, 43, 23, 43, 34, 23],
+        [23, 12, 34, 65, 43, 65],
+        [43, 23, 65, 34, 23, 54]
+    ]
+
+    gene_names = [f"Gene_{i}" for i in range(1, 6)]
+    col_names = [f"Cell_{i}" for i in range(1, 7)]
+
+    # Create DataFrames
+    dataset1 = pd.DataFrame(dataset1_values, columns=col_names, index=gene_names)
+    dataset2 = pd.DataFrame(dataset2_values, columns=col_names, index=gene_names)
+
+    data_list = [dataset1, dataset2]
+
+    mcia_instance = MCIAnalysis(data_list)
+
+    mcia_instance.fit()
+
+    mcia_instance.transform()
+
+    mcia_instance.results()
+
+    tco_result = mcia_instance.Tco
+    # Define the expected result
+    expected_result_data = {
+        'SV1': [
+            1.331175, 0.350811, -0.376169, -0.400608, -0.662327,
+            -0.913352, 0.337682, -0.949238, 0.581600, 0.674187
+        ],
+        'SV2': [
+            -0.93431468, 0.88928010, -0.11350972, 0.05502200, 0.09680284,
+            -0.82564272, 0.03521497, 0.05176990, 0.78791736, -0.22439781
+        ]
+    }
+
+    index_values = [
+        "Gene_1.Ana1", "Gene_2.Ana1", "Gene_3.Ana1", "Gene_4.Ana1", "Gene_5.Ana1",
+        "Gene_1.Ana2", "Gene_2.Ana2", "Gene_3.Ana2", "Gene_4.Ana2", "Gene_5.Ana2",
+    ]
+
+    expected_result = pd.DataFrame(expected_result_data, index=index_values)
+
+    assert np.allclose(tco_result, expected_result, atol=1e-6)
+
+
 def test_mcia_random_datasets_time():
     import time
     start = time.time()
@@ -499,13 +556,13 @@ def test_plotting_2():
     mcia_instance.results()
 
     projected = mcia_instance.project(dataset2)
-    print(projected)
 
-    import matplotlib.pyplot as plt
+    # Create the scatter plot
+    plt.scatter(projected[0]*len(gene_names), projected[1]*len(col_names), c='red', label='Projected Data') # todo:somehow this almost scales them.. need to show to clemens
 
     plt.scatter(mcia_instance.Tco['SV1'], mcia_instance.Tco['SV2'], c='blue', label='MCIA Data')
 
-    plt.scatter(projected[0]*len(gene_names), projected[1]*len(col_names), c='red', label='Projected Data') # todo:somehow this almost scales them.. need to show to clemens
+    #plt.scatter(projected[0] * pd.Series(mcia_instance.column_weight), projected[1]*pd.Series(mcia_instance.column_weight), c='red', label='Projected Data') # todo:somehow this almost scales them.. need to show to clemens
 
     plt.xlabel('SV1')
     plt.ylabel('SV2')
@@ -571,6 +628,14 @@ def test_plotting_3():
     projected.results()
 
     import matplotlib.pyplot as plt
+
+    # Annotate MCIA Data
+    for i, txt in enumerate(gene_names):
+        plt.annotate(txt, (mcia_instance.Tco['SV1'][i], mcia_instance.Tco['SV2'][i]))
+
+    # Annotate Projected Data
+    for i, txt in enumerate(gene_names):
+        plt.annotate(txt, (projected.Tco['SV1'][i], projected.Tco['SV2'][i]))
 
     plt.scatter(mcia_instance.Tco['SV1'], mcia_instance.Tco['SV2'], c='blue', label='MCIA Data')
 

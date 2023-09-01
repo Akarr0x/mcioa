@@ -109,10 +109,10 @@ def dudi_nsc(df, nf=2):
 
     # Transpose if more rows than columns
     transpose = False
-    if df.shape[1] > df.shape[0]:
-        transpose = True
-        df = df.T
-        col, row_w, col_w = df.shape[1], col_w, row_w  # Swap row and column weights
+    #if df.shape[1] > df.shape[0]:
+    #    transpose = True
+    #    df = df.T
+    #    col, row_w, col_w = df.shape[1], col_w, row_w  # Swap row and column weights
 
     # Normalize and center data
     df = df.T.apply(lambda x: col_w if x.sum() == 0 else x / x.sum()).T
@@ -919,6 +919,7 @@ def mcoa(X, option=None, nf=3, data_projected = False):
 
         # Extract the first singular value
         singular_value = np.array([s[0]])
+
         valsing = np.concatenate([valsing, singular_value]) if valsing is not None else singular_value
     # Squaring the valsing to get pseudo eigenvalues
     pseudo_eigenvalues = valsing ** 2
