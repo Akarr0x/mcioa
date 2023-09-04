@@ -421,25 +421,11 @@ def test_single_dataset():
         [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
     ]
 
-    dataset2_values = [
-        [34, 56, 23, 12, 43, 23, 34, 65, 67, 34],
-        [45, 34, 56, 54, 23, 54, 23, 54, 23, 23],
-        [65, 43, 23, 43, 34, 23, 54, 43, 34, 65],
-        [23, 12, 34, 65, 43, 65, 43, 23, 45, 56],
-        [43, 23, 65, 34, 23, 54, 34, 23, 54, 45],
-        [12, 34, 23, 43, 54, 65, 23, 54, 65, 23],
-        [23, 54, 65, 23, 23, 54, 23, 43, 54, 23],
-        [34, 23, 43, 56, 34, 23, 65, 34, 67, 23],
-        [45, 65, 23, 45, 23, 54, 43, 23, 45, 67],
-        [56, 43, 23, 34, 65, 23, 54, 56, 43, 45],
-        [67, 34, 56, 54, 43, 23, 65, 34, 56, 65],
-    ]
     gene_names = [f"Gene_{i}" for i in range(1, 12)]
     col_names = [f"Cell_{i}" for i in range(1, 11)]
 
     # Create DataFrames
     dataset1 = pd.DataFrame(dataset1_values, columns=col_names, index=gene_names)
-    dataset2 = pd.DataFrame(dataset2_values, columns=col_names, index=gene_names)
 
     data_list = [dataset1]
 
@@ -502,7 +488,7 @@ def test_plotting():
 
     plt.scatter(mcia_instance.Tco['SV1'], mcia_instance.Tco['SV2'], c='blue', label='MCIA Data')
 
-    plt.scatter(projected[0], projected[1], c='red', label='Protected Data')
+    plt.scatter(projected[0], projected[1], s = 122, c='red', label='Protected Data')
 
     plt.xlabel('SV1')
     plt.ylabel('SV2')
@@ -560,11 +546,9 @@ def test_plotting_2():
     projected = mcia_instance.project(dataset2)
 
     # Create the scatter plot
-    plt.scatter(projected[0]*len(gene_names), projected[1]*len(col_names), c='red', label='Projected Data') # todo:somehow this almost scales them.. need to show to clemens
+    plt.scatter(projected[0], projected[1], s = 50, c='red', label='Projected Data')
 
     plt.scatter(mcia_instance.Tco['SV1'], mcia_instance.Tco['SV2'], c='blue', label='MCIA Data')
-
-    #plt.scatter(projected[0] * pd.Series(mcia_instance.column_weight), projected[1]*pd.Series(mcia_instance.column_weight), c='red', label='Projected Data') # todo:somehow this almost scales them.. need to show to clemens
 
     plt.xlabel('SV1')
     plt.ylabel('SV2')
@@ -652,7 +636,7 @@ def test_plotting_3():
 
 
 
-def test_plotting():
+def test_plotting_multiple_dataset():
     dataset1_values = [
         [23, 43, 65, 22, 1, 78, 34, 54, 23, 65],
         [34, 23, 45, 65, 23, 43, 56, 67, 34, 23],

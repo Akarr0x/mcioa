@@ -810,6 +810,7 @@ def mcoa(X, option=None, nf=3, data_projected = False):
 
     Xsepan = sepan(X, nf=4)  # Recalculate sepan with the updated X
 
+
     '''
     The call of two sepan functions, one with the non weighted dataset and the other with the weighted tables 
     is done so that the contributions of each datasets are balanced, so that the co-inertia structure better reflects
@@ -820,6 +821,9 @@ def mcoa(X, option=None, nf=3, data_projected = False):
 
     # Convert the first element of X to a DataFrame and assign it to tab
     tab = pd.DataFrame(X[0])
+
+    if data_projected:
+        return X[0]
 
     # Concatenate the remaining elements of X (from the 2nd to nbloc) to the columns of tab
     for i in range(1, nbloc):
@@ -850,8 +854,6 @@ def mcoa(X, option=None, nf=3, data_projected = False):
     tab = tab.mul(np.sqrt(lw), axis=0)
     tab = tab.mul(np.sqrt(cw), axis=1)
 
-    if data_projected:
-        return tab
 
     '''
     Initialization for upcoming calculations.
@@ -923,6 +925,8 @@ def mcoa(X, option=None, nf=3, data_projected = False):
         valsing = np.concatenate([valsing, singular_value]) if valsing is not None else singular_value
     # Squaring the valsing to get pseudo eigenvalues
     pseudo_eigenvalues = valsing ** 2
+
+
 
     # Ensure nf is at least 2
     if nf <= 0:

@@ -14,7 +14,6 @@ class MCIAnalysis:
         self.nf = nf
         self.nsc = nsc
         self.multiple_co_inertia_result = None
-
         # Initialize your attributes as lists
         self.weighted_table = []
         self.column_weight = []
@@ -117,8 +116,8 @@ class MCIAnalysis:
         projected_dataset = MCIAnalysis([projected_dataset])
         projected_dataset.fit()
         projected_dataset.transform()
-        projected_dataset = projected_dataset.results(projected_dataset = True)
+        tab = projected_dataset.results(projected_dataset = True)
         weighted_urk = np.array(self.SynVar) * np.array(self.row_weight).T
-        projected_coordinates = np.array(projected_dataset).T.dot(weighted_urk)
-        return pd.DataFrame(projected_coordinates, index=projected_dataset.columns)
+        projected_coordinates = tab.T.dot(weighted_urk)
+        return projected_coordinates
 
