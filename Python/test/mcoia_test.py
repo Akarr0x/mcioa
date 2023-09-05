@@ -3,10 +3,9 @@ import numpy as np
 import pandas as pd
 import pytest
 import matplotlib.pyplot as plt
+from mcoia.classes import MCIAnalysis
+from mcoia.functions import *
 
-sys.path.append('/Users/alessandrodiamanti/Desktop/Tesi max planck/Python/mcoia')
-from mcoia import mcia
-from classes import MCIAnalysis
 
 np.random.seed(0)
 

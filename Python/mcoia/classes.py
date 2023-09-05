@@ -1,18 +1,13 @@
 import pandas as pd
 import numpy as np
-from numpy.linalg import svd
-import itertools
-import scipy
-from scipy.linalg import eigh
-import time
-from sklearn.decomposition import TruncatedSVD
-from mcoia import mcia, compile_tables, mcoa
+from .functions.mcia import mcia
+from .functions.data_reformat import compile_tables
+from .functions.mcoia import mcoa
 
 class MCIAnalysis:
-    def __init__(self, dataset, nf=2, nsc=True):
+    def __init__(self, dataset, nf=2):
         self.dataset = dataset
         self.nf = nf
-        self.nsc = nsc
         self.multiple_co_inertia_result = None
         # Initialize your attributes as lists
         self.weighted_table = []
@@ -46,7 +41,7 @@ class MCIAnalysis:
         self.final_results = None
 
     def fit(self):
-        self.multiple_co_inertia_result = mcia(self.dataset, self.nf, self.nsc)  # Calling the original mcia function
+        self.multiple_co_inertia_result = mcia(self.dataset, self.nf)  # Calling the original mcia function
 
         if self.multiple_co_inertia_result is not None:
             for res_dict in self.multiple_co_inertia_result:
