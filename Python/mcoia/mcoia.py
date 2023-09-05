@@ -413,16 +413,14 @@ def scalewt(df, wt=None, center=True, scale=True):
     return df, attributes
 
 
-def mcia(dataset, nf=2, nsc=True):
+def mcia(dataset, nf=10):
     """
     Performs multiple co-inertia analysis on a given set of datasets.
 
     Parameters:
     - dataset (list): List of datasets (pandas DataFrames) to analyze.
     - nf (int, default=2): Number of factors.
-    - scan (bool, default=False): [unused in the provided function]
     - nsc (bool, default=True): Flag to decide if Non-Symmetric Correspondence Analysis is performed.
-    - svd (bool, default=True): [unused in the provided function]
 
     Returns:
     - mciares (dict): Results containing mcoa and coa analyzes.
@@ -455,29 +453,28 @@ def mcia(dataset, nf=2, nsc=True):
             exit(1)
 
     # Convert datasets to Ade4 format and perform Non-Symmetric Correspondence Analysis
-    if nsc:
-        dataset = Array2Ade4(dataset, pos=True)
+    dataset = Array2Ade4(dataset, pos=True)
 
-        # Perform Non-Symmetric Correspondence Analysis on each dataset
-        nsca_results = {f'dataset_{i}': dudi_nsc(df, nf=nf) for i, df in enumerate(dataset)}  # Preprocessing
+    # Perform Non-Symmetric Correspondence Analysis on each dataset
+    nsca_results = {f'dataset_{i}': dudi_nsc(df, nf=nf) for i, df in enumerate(dataset)}  # Preprocessing
 
-        # Store transformed results
-        nsca_results_t = nsca_results
+    # Store transformed results
+    nsca_results_t = nsca_results
 
-        # Perform t_dudi on weighted_table of each nsca_result
-        for name, result in nsca_results.items():
-            nsca_results_t[name] = t_dudi(result)
+    # Perform t_dudi on weighted_table of each nsca_result
+    for name, result in nsca_results.items():
+        nsca_results_t[name] = t_dudi(result)
 
-        # Calculate the pairwise RV coefficients
-        RV = pairwise_rv(
-            nsca_results)
-        # RV coefficient is a way to define the information stored in two datasets, a value of 0 means
-        # no relationship while 1 mean perfect agreement between the two datasets
+    # Calculate the pairwise RV coefficients
+    RV = pairwise_rv(
+        nsca_results)
+    # RV coefficient is a way to define the information stored in two datasets, a value of 0 means
+    # no relationship while 1 mean perfect agreement between the two datasets
 
-        # Compile tables for analysis
-        nsca_results_list = list(nsca_results.values())
+    # Compile tables for analysis
+    nsca_results_list = list(nsca_results.values())
 
-        return nsca_results_list
+    return nsca_results_list
 
 
 def complete_dudi(dudi, nf1, nf2):
