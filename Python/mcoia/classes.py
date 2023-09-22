@@ -28,10 +28,10 @@ class MCIAnalysis:
         self.lambda_df = pd.DataFrame()
         self.SynVar = pd.DataFrame()
         self.axis = pd.DataFrame()
-        self.Tli = pd.DataFrame()
+        self.row_projection = pd.DataFrame()
         self.cov2 = pd.DataFrame()
-        self.Tl1 = pd.DataFrame()
-        self.Tco = pd.DataFrame()
+        self.row_projection_normed = pd.DataFrame()
+        self.column_projection = pd.DataFrame()
         self.Tax = pd.DataFrame()
         self.nf = nf  # Already present
         self.TL = None
@@ -83,10 +83,10 @@ class MCIAnalysis:
             self.lambda_df = analysis_results['lambda']
             self.SynVar = analysis_results['SynVar']
             self.axis = analysis_results['axis']
-            self.Tli = analysis_results['row_projection']
+            self.row_projection = analysis_results['row_projection']
             self.cov2 = analysis_results['cov2']
-            self.Tl1 = analysis_results['row_projection_normed']
-            self.Tco = analysis_results['column_projection']
+            self.row_projection_normed = analysis_results['row_projection_normed']
+            self.column_projection = analysis_results['column_projection']
             self.Tax = analysis_results['Tax']
             self.TL = analysis_results['TL']
             self.TC = analysis_results['TC']
