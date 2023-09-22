@@ -177,23 +177,23 @@ def complete_dudi(dudi, nf1, nf2):
                             columns=[f'Axis{i}' for i in range(nf_start, nf_end + 1)])
 
     # Extend 'factor_scores' with zero-filled columns
-    dudi['factor_scores'] = pd.concat([dudi['factor_scores'],
-                                       create_zero_df(dudi['factor_scores'].shape[0], nf1, nf2)],
+    dudi['row_scores'] = pd.concat([dudi['row_scores'],
+                                       create_zero_df(dudi['row_scores'].shape[0], nf1, nf2)],
                                       axis=1)
 
     # Extend 'row_coordinates' with zero-filled columns
-    dudi['row_coordinates'] = pd.concat([dudi['row_coordinates'],
-                                         create_zero_df(dudi['row_coordinates'].shape[0], nf1, nf2)],
+    dudi['row_principal_coordinates'] = pd.concat([dudi['row_principal_coordinates'],
+                                         create_zero_df(dudi['row_principal_coordinates'].shape[0], nf1, nf2)],
                                         axis=1)
 
     # Extend 'principal_coordinates' with zero-filled columns
-    dudi['principal_coordinates'] = pd.concat([dudi['principal_coordinates'],
-                                               create_zero_df(dudi['principal_coordinates'].shape[0], nf1, nf2)],
+    dudi['column_principal_coordinates'] = pd.concat([dudi['column_principal_coordinates'],
+                                               create_zero_df(dudi['column_principal_coordinates'].shape[0], nf1, nf2)],
                                               axis=1)
 
     # Extend 'component_scores' with zero-filled columns
-    dudi['component_scores'] = pd.concat([dudi['component_scores'],
-                                          create_zero_df(dudi['component_scores'].shape[0], nf1, nf2)],
+    dudi['column_score'] = pd.concat([dudi['column_score'],
+                                          create_zero_df(dudi['column_score'].shape[0], nf1, nf2)],
                                          axis=1)
 
     return dudi

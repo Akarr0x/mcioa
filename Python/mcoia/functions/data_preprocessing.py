@@ -4,7 +4,7 @@ from scipy.linalg import eigh
 from sklearn.decomposition import TruncatedSVD
 
 
-def dudi_nsc(df, nf=2):
+def perform_nsc_analysis(df, nf=2):
     """
     Performs Non-Symmetric Correspondence Analysis on the data.
 
@@ -41,13 +41,13 @@ def dudi_nsc(df, nf=2):
     df = df.subtract(col_w, axis=1)
     df *= col
 
-    X = as_dudi(df, np.ones(col) / col, row_w, nf, transpose=transpose)
+    X = decompose_data_to_principal_coords(df, np.ones(col) / col, row_w, nf, transpose=transpose)
     X['N'] = N
 
     return X
 
 
-def as_dudi(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=True, transpose=False):
+def decompose_data_to_principal_coords(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=True, transpose=False):
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Expected input is a pandas DataFrame.")
 
@@ -112,23 +112,23 @@ def as_dudi(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=T
         factor_scores = pd.DataFrame(
             factor_scores.values @ component_scores)  # Matrix multiplication and conversion to DataFrame
 
-        res['component_scores'] = pd.DataFrame(component_scores,
+        res['column_scores'] = pd.DataFrame(component_scores,
                                                columns=[f'CS{i + 1}' for i in range(nf)])  # principal axes (A)
-        res['factor_scores'] = factor_scores
-        res['factor_scores'].columns = [f'Axis{i + 1}' for i in range(nf)]  # row scores (L)
-        res['principal_coordinates'] = res['component_scores'].multiply(
+        res['row_scores'] = factor_scores
+        res['row_scores'].columns = [f'Axis{i + 1}' for i in range(nf)]  # row scores (L)
+        res['column_principal_coordinates'] = res['column_scores'].multiply(
             eigen_sqrt[::-1])  # This is the column score (C)
-        res['row_coordinates'] = res['factor_scores'].div(eigen_sqrt[::-1])  # This is the principal components (K)
+        res['row_principal_coordinates'] = res['row_scores'].div(eigen_sqrt[::-1])  # This is the principal components (K)
     else:
         row_w_sqrt_rec = 1 / np.sqrt(row_w)
         row_coordinates = np.array(pd.DataFrame(eig_vectors.T).iloc[:, :nf] * row_w_sqrt_rec.reshape(-1, 1))
         factor_scores = df_ori.T.multiply(res['row_weight'], axis=1)
         factor_scores = pd.DataFrame(
             factor_scores.values @ row_coordinates)
-        res['row_coordinates'] = pd.DataFrame(row_coordinates, columns=[f'RS{i + 1}' for i in range(nf)])
-        res['principal_coordinates'] = pd.DataFrame(factor_scores, columns=[f'Comp{i + 1}' for i in range(nf)])
-        res['factor_scores'] = res['row_coordinates'].multiply(eigen_sqrt[::-1])
-        res['component_scores'] = res['principal_coordinates'].div(eigen_sqrt[::-1])
+        res['row_principal_coordinates'] = pd.DataFrame(row_coordinates, columns=[f'RS{i + 1}' for i in range(nf)])
+        res['column_principal_coordinates'] = pd.DataFrame(factor_scores, columns=[f'Comp{i + 1}' for i in range(nf)])
+        res['row_scores'] = res['row_principal_coordinates'].multiply(eigen_sqrt[::-1])
+        res['column_scores'] = res['column_principal_coordinates'].div(eigen_sqrt[::-1])
 
     res['call'] = None
     if class_type is None:
@@ -138,12 +138,12 @@ def as_dudi(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=T
     return res
 
 
-def t_dudi(x):
+def transpose_analysis_result(x):
     if not isinstance(x, dict) or 'eigenvalues' not in x.keys():
         raise ValueError("Dictionary of class 'dudi' expected")
     res = {'weighted_table': x['weighted_table'].transpose(), 'column_weight': x['row_weight'],
            'row_weight': x['column_weight'], 'eigenvalues': x['eigenvalues'], 'rank': x['rank'],
-           'factor_numbers': x['factor_numbers'], 'component_scores': x['row_coordinates'],
-           'row_coordinates': x['component_scores'], 'principal_coordinates': x['factor_scores'],
-           'factor_scores': x['principal_coordinates'], 'dudi': 'transpo'}
+           'factor_numbers': x['factor_numbers'], 'column_scores': x['row_principal_coordinates'],
+           'row_principal_coordinates': x['column_scores'], 'column_principal_coordinates': x['row_scores'],
+           'row_scores': x['column_principal_coordinates'], 'dudi': 'transpo'}
     return res

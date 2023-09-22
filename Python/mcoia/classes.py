@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from .functions.mcia import mcia
 from .functions.data_reformat import compile_tables
-from .functions.mcoia import mcoa
+from .functions.mcoia import multiple_coinertia_analysis
 
 class MCIAnalysis:
     def __init__(self, dataset, nf=2):
@@ -51,10 +51,10 @@ class MCIAnalysis:
                 self.eigenvalues.append(res_dict.get('eigenvalues'))
                 self.rank.append(res_dict.get('rank'))
                 self.factor_numbers.append(res_dict.get('factor_numbers'))
-                self.component_scores.append(res_dict.get('component_scores'))
-                self.row_coordinates.append(res_dict.get('row_coordinates'))
-                self.principal_coordinates.append(res_dict.get('principal_coordinates'))
-                self.factor_scores.append(res_dict.get('factor_scores'))
+                self.component_scores.append(res_dict.get('column_scores'))
+                self.row_coordinates.append(res_dict.get('row_principal_coordinates'))
+                self.principal_coordinates.append(res_dict.get('column_principal_coordinates'))
+                self.factor_scores.append(res_dict.get('row_scores'))
                 self.class_type.append(res_dict.get('dudi'))
 
             return True
@@ -74,27 +74,27 @@ class MCIAnalysis:
     def results(self, projected_dataset = False):
 
         if projected_dataset:
-            acom = mcoa(X=self.ktcoa, nf=self.nf, data_projected=projected_dataset)
-            return acom
+            analysis_results = multiple_coinertia_analysis(X=self.ktcoa, nf=self.nf, data_projected=projected_dataset)
+            return analysis_results
 
         if self.ktcoa is not None:
-            acom = mcoa(X=self.ktcoa, nf=self.nf)
-            self.pseudo_eigenvalues = acom['pseudo_eigenvalues']
-            self.lambda_df = acom['lambda']
-            self.SynVar = acom['SynVar']
-            self.axis = acom['axis']
-            self.Tli = acom['Tli']
-            self.cov2 = acom['cov2']
-            self.Tl1 = acom['Tl1']
-            self.Tco = acom['Tco']
-            self.Tax = acom['Tax']
-            self.TL = acom['TL']
-            self.TC = acom['TC']
-            self.T4 = acom['T4']
-            self.class_type = acom['class']
+            analysis_results = multiple_coinertia_analysis(X=self.ktcoa, nf=self.nf)
+            self.pseudo_eigenvalues = analysis_results['pseudo_eigenvalues']
+            self.lambda_df = analysis_results['lambda']
+            self.SynVar = analysis_results['SynVar']
+            self.axis = analysis_results['axis']
+            self.Tli = analysis_results['Tli']
+            self.cov2 = analysis_results['cov2']
+            self.Tl1 = analysis_results['Tl1']
+            self.Tco = analysis_results['Tco']
+            self.Tax = analysis_results['Tax']
+            self.TL = analysis_results['TL']
+            self.TC = analysis_results['TC']
+            self.T4 = analysis_results['T4']
+            self.class_type = analysis_results['class']
 
             # Maybe add these to a final_results dict for easy retrieval
-            self.final_results = acom
+            self.final_results = analysis_results
 
             # Scale the results (commented out in your original code, uncomment if needed)
             # tab, attributes = scalewt(multiple_co_inertia['Tco'], self.ktcoa['column_weight'], center=False, scale=True)

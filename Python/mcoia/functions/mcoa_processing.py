@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 
-def normalize_per_block(scorcol, number_of_blocks, block_indicator, veclev, tol=1e-7):
+def normalize_matrix_by_block(scorcol, number_of_blocks, block_indicator, veclev, tol=1e-7):
     """
     Normalize `scorcol` by block, based on the block indicators `indicablo`
     and the unique block levels `veclev`.
