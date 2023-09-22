@@ -185,7 +185,7 @@ def multiple_coinertia_analysis(X, option=None, nf=3, data_projected = False):
     w_df = pd.DataFrame(w, index=auxiliary_names['row'])
     w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
 
-    analysis_result['Tli'] = w_df
+    analysis_result['row_projection'] = w_df
 
     # Convert covar to DataFrame and square it, then store in analysis_result
     covar_df = pd.DataFrame(covar)
@@ -200,7 +200,7 @@ def multiple_coinertia_analysis(X, option=None, nf=3, data_projected = False):
     for k in range(nbloc):
         i1 = i2 + 1
         i2 = i2 + nlig
-        complete_weighted_datasets = analysis_result['Tli'].iloc[i1 - 1:i2, :]
+        complete_weighted_datasets = analysis_result['row_projection'].iloc[i1 - 1:i2, :]
         lw_sqrt = np.sqrt(lw)
         squared_values = (complete_weighted_datasets.values * lw_sqrt.reshape(-1, 1)) ** 2
         column_sums_sqrt = np.sqrt(squared_values.sum(axis=0))
@@ -210,7 +210,7 @@ def multiple_coinertia_analysis(X, option=None, nf=3, data_projected = False):
     # Create DataFrame for adjusted w and store it as Tl1 in analysis_result
     w_df = pd.DataFrame(w, index=auxiliary_names['row'])
     w_df.columns = [f"Axis{str(i + 1)}" for i in range(nf)]
-    analysis_result['Tl1'] = w_df  # a normalized and re-scaled version of Tli
+    analysis_result['row_projection_normed'] = w_df  # a normalized and re-scaled version of Tli
 
     w = np.zeros((ncol, nf))
     i2 = 0
@@ -226,7 +226,7 @@ def multiple_coinertia_analysis(X, option=None, nf=3, data_projected = False):
     # Create DataFrame for w and store it as Tco in analysis_result
     w_df = pd.DataFrame(w, index=auxiliary_names['col'])
     w_df.columns = [f"SV{str(i + 1)}" for i in range(nf)]
-    analysis_result['Tco'] = w_df
+    analysis_result['column_projection'] = w_df
 
     # Reset variables and initialize var.names
     var_names = []
