@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from .data_initialization import Array2Ade4
-from .data_preprocessing import dudi_nsc, t_dudi
+from .data_preprocessing import perform_nsc_analysis, transpose_analysis_result
 from .rv import pairwise_rv
 
 
@@ -48,14 +48,14 @@ def mcia(dataset, nf=10):
     dataset = Array2Ade4(dataset, pos=True)
 
     # Perform Non-Symmetric Correspondence Analysis on each dataset
-    nsca_results = {f'dataset_{i}': dudi_nsc(df, nf=nf) for i, df in enumerate(dataset)}  # Preprocessing
+    nsca_results = {f'dataset_{i}': perform_nsc_analysis(df, nf=nf) for i, df in enumerate(dataset)}  # Preprocessing
 
     # Store transformed results
     nsca_results_t = nsca_results
 
     # Perform t_dudi on weighted_table of each nsca_result
     for name, result in nsca_results.items():
-        nsca_results_t[name] = t_dudi(result)
+        nsca_results_t[name] = transpose_analysis_result(result)
 
     # Calculate the pairwise RV coefficients
     RV = pairwise_rv(
