@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
-from .data_preprocessing import as_dudi
+from .data_preprocessing import decompose_data_to_principal_coords
 from .data_reformat import complete_dudi
+# changed variable nam
 
-
-def sepan(data, nf=20):
+def multi_block_eigenanalysis(data, nf=20):
     """
     Compute successive eigenanalysis of partitioned data.
 
@@ -27,24 +27,24 @@ def sepan(data, nf=20):
     j1 = 0
     j2 = list(blo.values())[0]
 
-    auxi = as_dudi(data[0], col_w=cw[j1:j2], row_w=lw, nf=nf, class_type="sepan")
+    auxi = decompose_data_to_principal_coords(data[0], col_w=cw[j1:j2], row_w=lw, nf=nf, class_type="sepan")
 
     if auxi['factor_numbers'] < nf:
         auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
 
     Eig = list(auxi['eigenvalues'])
-    Co = auxi['principal_coordinates']
-    Li = auxi['factor_scores']
-    C1 = auxi['component_scores']
-    L1 = auxi['row_coordinates']
+    Co = auxi['column_principal_coordinates']
+    Li = auxi['row_scores']
+    C1 = auxi['column_scores']
+    L1 = auxi['row_principal_coordinates']
 
     rank = [auxi['rank']]
 
     mapping = {
-        'principal_coordinates': 'Co',
-        'factor_scores': 'Li',
-        'component_scores': 'C1',
-        'row_coordinates': 'L1'
+        'column_principal_coordinates': 'Co',
+        'row_scores': 'Li',
+        'column_scores': 'C1',
+        'row_principal_coordinates': 'L1'
     }
 
     for df in [Li, L1, Co, C1]:
@@ -54,7 +54,7 @@ def sepan(data, nf=20):
         j1 = j2
         j2 = j2 + blo[block_key]
         tab = data[i]
-        auxi = as_dudi(tab, cw[j1:j2], lw, nf=nf)
+        auxi = decompose_data_to_principal_coords(tab, cw[j1:j2], lw, nf=nf)
 
         # Append values to the respective lists
         Eig.extend(auxi['eigenvalues'].tolist())
@@ -81,10 +81,10 @@ def sepan(data, nf=20):
     rank = np.array(rank)
 
     res = {
-        'row_coordinates': L1,
-        'component_scores': C1,
-        'principal_coordinates': Co,
-        'factor_scores': Li,
+        'row_principal_coordinates': L1,
+        'column_scores': C1,
+        'column_principal_coordinates': Co,
+        'row_scores': Li,
         'eigenvalues': Eig,
         'TL': data['TL'],
         'TC': data['TC'],

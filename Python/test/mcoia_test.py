@@ -53,7 +53,7 @@ def test_mcia_tli():
 
     mcia_instance.results()
 
-    Tli = mcia_instance.Tli
+    Tli = mcia_instance.row_projection
 
     # Call the mcia function
     result = mcia(data_list)
@@ -188,7 +188,7 @@ def test_mcia_tl1():
 
     mcia_instance.results()
 
-    tl1_result = mcia_instance.Tl1
+    tl1_result = mcia_instance.row_projection_normed
 
     # Define the expected result
     expected_result_data = {
@@ -266,7 +266,7 @@ def test_mcia_tco():
 
     mcia_instance.results()
 
-    tco_result = mcia_instance.Tco
+    tco_result = mcia_instance.column_projection
     # Define the expected result
     expected_result_data = {
         'SV1': [
@@ -331,7 +331,7 @@ def test_mcia_tco_2():
 
     mcia_instance.results()
 
-    tco_result = mcia_instance.Tco
+    tco_result = mcia_instance.column_projection
     # Define the expected result
     expected_result_data = {
         'SV1': [
@@ -485,7 +485,7 @@ def test_plotting():
 
     import matplotlib.pyplot as plt
 
-    plt.scatter(mcia_instance.Tco['SV1'], mcia_instance.Tco['SV2'], c='blue', label='MCIA Data')
+    plt.scatter(mcia_instance.column_projection['SV1'], mcia_instance.column_projection['SV2'], c='blue', label='MCIA Data')
 
     plt.scatter(projected[0], projected[1], s = 122, c='red', label='Protected Data')
 
@@ -547,7 +547,7 @@ def test_plotting_2():
     # Create the scatter plot
     plt.scatter(projected[0], projected[1], s = 50, c='red', label='Projected Data')
 
-    plt.scatter(mcia_instance.Tco['SV1'], mcia_instance.Tco['SV2'], c='blue', label='MCIA Data')
+    plt.scatter(mcia_instance.column_projection['SV1'], mcia_instance.column_projection['SV2'], c='blue', label='MCIA Data')
 
     plt.xlabel('SV1')
     plt.ylabel('SV2')
@@ -616,15 +616,15 @@ def test_plotting_3():
 
     # Annotate MCIA Data
     for i, txt in enumerate(gene_names):
-        plt.annotate(txt, (mcia_instance.Tco['SV1'][i], mcia_instance.Tco['SV2'][i]))
+        plt.annotate(txt, (mcia_instance.column_projection['SV1'][i], mcia_instance.column_projection['SV2'][i]))
 
     # Annotate Projected Data
     for i, txt in enumerate(gene_names):
-        plt.annotate(txt, (projected.Tco['SV1'][i], projected.Tco['SV2'][i]))
+        plt.annotate(txt, (projected.column_projection['SV1'][i], projected.column_projection['SV2'][i]))
 
-    plt.scatter(mcia_instance.Tco['SV1'], mcia_instance.Tco['SV2'], c='blue', label='MCIA Data')
+    plt.scatter(mcia_instance.column_projection['SV1'], mcia_instance.column_projection['SV2'], c='blue', label='MCIA Data')
 
-    plt.scatter(projected.Tco['SV1'], projected.Tco['SV2'], s = 15, c='red', label='Protected Data')
+    plt.scatter(projected.column_projection['SV1'], projected.column_projection['SV2'], s = 15, c='red', label='Protected Data')
 
     plt.xlabel('SV1')
     plt.ylabel('SV2')
@@ -683,19 +683,19 @@ def test_plotting_multiple_dataset():
     import matplotlib.pyplot as plt
 
     num_datasets = 2  # replace N with the number of datasets you want
-    chunk_size = mcia_instance.Tco.shape[0] // num_datasets
+    chunk_size = mcia_instance.column_projection.shape[0] // num_datasets
 
     # Initialize list of lists for SV1 and SV2 values
     x = [[] for _ in range(num_datasets)]
     y = [[] for _ in range(num_datasets)]
 
     # Loop through DataFrame and distribute rows to different datasets
-    for i in range(mcia_instance.Tco.shape[0]):
+    for i in range(mcia_instance.column_projection.shape[0]):
         dataset_index = i // chunk_size
         if dataset_index >= num_datasets:
             dataset_index = num_datasets - 1  # Put any overflow rows in the last dataset
-        x[dataset_index].append(mcia_instance.Tco.iloc[i]['SV1'])
-        y[dataset_index].append(mcia_instance.Tco.iloc[i]['SV2'])
+        x[dataset_index].append(mcia_instance.column_projection.iloc[i]['SV1'])
+        y[dataset_index].append(mcia_instance.column_projection.iloc[i]['SV2'])
 
     import matplotlib.pyplot as plt
 
