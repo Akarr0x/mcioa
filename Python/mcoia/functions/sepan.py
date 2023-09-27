@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from .data_preprocessing import decompose_data_to_principal_coords
 from .data_reformat import complete_dudi
-
+# changed variable nam
 
 def multi_block_eigenanalysis(data, nf=20):
     """

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
-from .data_initialization import Array2Ade4
-from .data_preprocessing import perform_nsc_analysis, transpose_analysis_result
+#from .data_initialization import Array2Ade4
+from .data_preprocessing import perform_nsc_analysis, transpose_analysis_result, Array2Ade4
 from .rv import pairwise_rv
 
 
