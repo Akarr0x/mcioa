@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
 #from .data_initialization import Array2Ade4
-from .data_preprocessing import perform_nsc_analysis, transpose_analysis_result, Array2Ade4
+from .data_preprocessing import perform_nsc_analysis, transpose_analysis_result, Array2Ade4, perform_pca_analysis
 from .rv import pairwise_rv
 
 
-def mcia(dataset, nf=10):
+def mcia(dataset, nf=10, analysis_type = "nsc"):
     """
     Performs multiple co-inertia analysis on a given set of datasets.
 
@@ -48,22 +48,18 @@ def mcia(dataset, nf=10):
     dataset = Array2Ade4(dataset, pos=True)
 
     # Perform Non-Symmetric Correspondence Analysis on each dataset
-    nsca_results = {f'dataset_{i}': perform_nsc_analysis(df, nf=nf) for i, df in enumerate(dataset)}  # Preprocessing
+    if analysis_type == "nsc":
+        preprocessing_results = {f'dataset_{i}': perform_nsc_analysis(df, num_factors=nf) for i, df in enumerate(dataset)}
+    elif analysis_type == "pca":
+        preprocessing_results = {f'dataset_{i}': perform_pca_analysis(df, num_factors=nf) for i, df in enumerate(dataset)}
 
-    # Store transformed results
-    nsca_results_t = nsca_results
+    nsca_results_t = preprocessing_results
 
     # Perform t_dudi on weighted_table of each nsca_result
-    for name, result in nsca_results.items():
+    for name, result in preprocessing_results.items():
         nsca_results_t[name] = transpose_analysis_result(result)
 
-    # Calculate the pairwise RV coefficients
-    RV = pairwise_rv(
-        nsca_results)
-    # RV coefficient is a way to define the information stored in two datasets, a value of 0 means
-    # no relationship while 1 mean perfect agreement between the two datasets
-
     # Compile tables for analysis
-    nsca_results_list = list(nsca_results.values())
+    nsca_results_list = list(preprocessing_results.values())
 
     return nsca_results_list

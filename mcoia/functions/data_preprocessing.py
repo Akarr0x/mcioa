@@ -4,47 +4,82 @@ from scipy.linalg import eigh
 from sklearn.decomposition import TruncatedSVD
 
 
-def perform_nsc_analysis(df, nf=2):
+def perform_pca_analysis(data_frame, num_factors=2):
     """
-    Performs Non-Symmetric Correspondence Analysis on the data.
+    Performs Principal Component Analysis (PCA) on a given DataFrame.
 
     Parameters:
-    - df (pd.DataFrame or np.ndarray): The input data.
-    - nf (int): The number of factors.
+    - data_frame (pd.DataFrame): The DataFrame on which PCA is to be performed.
+    - num_factors (int): The number of principal components to be extracted.
 
     Returns:
-    - dict: A dictionary containing results of the analysis.
+    - np.array: The principal components of the given DataFrame.
+
+    Raises:
+    - ValueError: If there are NA (Not Available) entries in the DataFrame.
     """
-    df = pd.DataFrame(df)
-    col = df.shape[1]
+    total_values_sum = data_frame.values.sum()
+    row_weights = np.ones(data_frame.shape[0]) / data_frame.shape[0]
+    column_weights = np.ones(data_frame.shape[1])
 
-    if (df.values < 0).any():
-        raise ValueError("Negative entries in table")
+    if data_frame.isna().sum().sum() > 0:
+        raise ValueError("The DataFrame contains NA entries.")
 
-    N = df.values.sum()
-    if N == 0:
-        raise ValueError("All frequencies are zero")
+    # Centering the DataFrame
+    calculate_column_mean = lambda col: np.sum(col * row_weights) / np.sum(row_weights)
+    column_means = data_frame.apply(calculate_column_mean)
+    centered_data_frame = data_frame.subtract(column_means, axis=1)
 
-    row_w = df.sum(axis=1) / N
-    col_w = df.sum(axis=0) / N
-    df /= N
+    # Scaling the DataFrame
+    calculate_column_norm = lambda col: np.sqrt(np.sum(col ** 2 * row_weights) / np.sum(row_weights))
+    column_norms = centered_data_frame.apply(calculate_column_norm)
+    column_norms[column_norms < 1e-08] = 1
+    scaled_data_frame = centered_data_frame.div(column_norms, axis=1)
 
-    # Transpose if more rows than columns
-    transpose = False
-    #if df.shape[1] > df.shape[0]:
-    #    transpose = True
-    #    df = df.T
-    #    col, row_w, col_w = df.shape[1], col_w, row_w  # Swap row and column weights
+    principal_components = decompose_data_to_principal_coords(scaled_data_frame, column_weights, row_weights, num_factors, transpose=False)
+    return principal_components
 
-    # Normalize and center data
-    df = df.T.apply(lambda x: col_w if x.sum() == 0 else x / x.sum()).T
-    df = df.subtract(col_w, axis=1)
-    df *= col
 
-    X = decompose_data_to_principal_coords(df, np.ones(col) / col, row_w, nf, transpose=transpose)
-    X['N'] = N
+def perform_nsc_analysis(data_frame, num_factors=2):
+    """
+    Performs Non-Symmetric Correspondence Analysis (NSCA) on the given data.
 
-    return X
+    Parameters:
+    - data_frame (pd.DataFrame or np.ndarray): The input data for analysis.
+    - num_factors (int): The number of factors to extract.
+
+    Returns:
+    - dict: A dictionary containing the results of the NSCA.
+
+    Raises:
+    - ValueError: If there are negative entries in the data or if all frequencies are zero.
+    """
+    data_frame = pd.DataFrame(data_frame)
+    num_columns = data_frame.shape[1]
+
+    # Check for negative entries
+    if (data_frame.values < 0).any():
+        raise ValueError("The data contains negative entries.")
+
+    total_sum = data_frame.values.sum()
+    # Check if all frequencies are zero
+    if total_sum == 0:
+        raise ValueError("All frequencies in the data are zero.")
+
+    # Calculating row and column weights
+    row_weights = data_frame.sum(axis=1) / total_sum
+    column_weights = data_frame.sum(axis=0) / total_sum
+    normalized_data_frame = data_frame / total_sum
+
+    # Adjusting the DataFrame
+    normalized_data_frame = normalized_data_frame.T.apply(lambda x: column_weights if x.sum() == 0 else x / x.sum()).T
+    normalized_data_frame = normalized_data_frame.subtract(column_weights, axis=1)
+    normalized_data_frame *= num_columns
+
+    principal_coords = decompose_data_to_principal_coords(normalized_data_frame, np.ones(num_columns) / num_columns, row_weights, num_factors, transpose=False)
+    principal_coords['total_sum'] = total_sum
+
+    return principal_coords
 
 
 def decompose_data_to_principal_coords(df, col_w, row_w, nf=2, full=False, tol=1e-7, class_type=None, SVD=True, transpose=False):
@@ -138,15 +173,37 @@ def decompose_data_to_principal_coords(df, col_w, row_w, nf=2, full=False, tol=1
     return res
 
 
-def transpose_analysis_result(x):
-    if not isinstance(x, dict) or 'eigenvalues' not in x.keys():
-        raise ValueError("Dictionary of class 'dudi' expected")
-    res = {'weighted_table': x['weighted_table'].transpose(), 'column_weight': x['row_weight'],
-           'row_weight': x['column_weight'], 'eigenvalues': x['eigenvalues'], 'rank': x['rank'],
-           'factor_numbers': x['factor_numbers'], 'column_scores': x['row_principal_coordinates'],
-           'row_principal_coordinates': x['column_scores'], 'column_principal_coordinates': x['row_scores'],
-           'row_scores': x['column_principal_coordinates'], 'dudi': 'transpo'}
-    return res
+def transpose_analysis_result(analysis_result):
+    """
+    Transposes the analysis result from a 'dudi' class dictionary.
+
+    Parameters:
+    - analysis_result (dict): The analysis result dictionary, expected to be of class 'dudi'.
+
+    Returns:
+    - dict: A dictionary with transposed results.
+
+    Raises:
+    - ValueError: If the input is not a dictionary of class 'dudi'.
+    """
+    if not isinstance(analysis_result, dict) or 'eigenvalues' not in analysis_result:
+        raise ValueError("Input must be a dictionary of class 'dudi'.")
+
+    transposed_result = {
+        'weighted_table': analysis_result['weighted_table'].transpose(),
+        'column_weight': analysis_result['row_weight'],
+        'row_weight': analysis_result['column_weight'],
+        'eigenvalues': analysis_result['eigenvalues'],
+        'rank': analysis_result['rank'],
+        'factor_numbers': analysis_result['factor_numbers'],
+        'column_scores': analysis_result['row_principal_coordinates'],
+        'row_principal_coordinates': analysis_result['column_scores'],
+        'column_principal_coordinates': analysis_result['row_scores'],
+        'row_scores': analysis_result['column_principal_coordinates'],
+        'dudi': 'transpo'
+    }
+    return transposed_result
+
 
 
 

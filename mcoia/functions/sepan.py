@@ -2,97 +2,109 @@ import pandas as pd
 import numpy as np
 from .data_preprocessing import decompose_data_to_principal_coords
 from .data_reformat import complete_dudi
-# changed variable nam
 
-def multi_block_eigenanalysis(data, nf=20):
+
+def multi_block_eigenanalysis(data, num_factors=20):
     """
-    Compute successive eigenanalysis of partitioned data.
+    Compute successive eigenanalysis on partitioned data for multi-block analysis.
 
     Parameters:
-    - data (dict): Contains the data, weights, block definitions, and other information.
-    - nf (int): Number of factors to be computed.
+    - data (dict): A dictionary containing data, weights, block definitions, and other information.
+    - num_factors (int): The number of factors to compute.
 
     Returns:
-    - dict: Results containing coordinates, scores, eigenvalues, etc.
+    - dict: Results containing coordinates, scores, eigenvalues, and additional information.
     """
 
-    # Ensure that the input data is of the expected type
+    # Validate input data class
     if data.get('class') != "ktab":
-        raise ValueError("Expected object of class 'ktab'")
+        raise ValueError("Input data must be of class 'ktab'.")
 
-    lw = data['row_weight']
-    cw = data['column_weight']
-    blo = data['blocks']
-    ntab = len(blo)
-    j1 = 0
-    j2 = list(blo.values())[0]
+    row_weights = data['row_weight']
+    column_weights = data['column_weight']
+    blocks = data['blocks']
+    num_tables = len(blocks)
 
-    auxi = decompose_data_to_principal_coords(data[0], col_w=cw[j1:j2], row_w=lw, nf=nf, class_type="sepan")
+    start_index = 0
+    end_index = list(blocks.values())[0]
 
-    if auxi['factor_numbers'] < nf:
-        auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
+    # Decompose first block
+    initial_decomposition = decompose_data_to_principal_coords(data[0], col_w=column_weights[start_index:end_index],
+                                                               row_w=row_weights, nf=num_factors, class_type="sepan")
 
-    Eig = list(auxi['eigenvalues'])
-    Co = auxi['column_principal_coordinates']
-    Li = auxi['row_scores']
-    C1 = auxi['column_scores']
-    L1 = auxi['row_principal_coordinates']
+    # Complete the decomposition if factors are less than requested
+    if initial_decomposition['factor_numbers'] < num_factors:
+        initial_decomposition = complete_dudi(initial_decomposition, initial_decomposition['factor_numbers'] + 1,
+                                              num_factors)
 
-    rank = [auxi['rank']]
+    eigenvalues = list(initial_decomposition['eigenvalues'])
+    column_principal_coords = initial_decomposition['column_principal_coordinates']
+    row_scores = initial_decomposition['row_scores']
+    column_scores = initial_decomposition['column_scores']
+    row_principal_coords = initial_decomposition['row_principal_coordinates']
 
-    mapping = {
+    decomposition_ranks = [initial_decomposition['rank']]
+
+    # Mapping for coordinates and scores
+    coords_scores_mapping = {
         'column_principal_coordinates': 'Co',
         'row_scores': 'Li',
         'column_scores': 'C1',
         'row_principal_coordinates': 'L1'
     }
 
-    for df in [Li, L1, Co, C1]:
-        df.index = [f'{index}.{j1}' for index in df.index]
+    # Update indices for coordinates and scores
+    for dataframe in [row_scores, row_principal_coords, column_principal_coords, column_scores]:
+        dataframe.index = [f'{index}.{start_index}' for index in dataframe.index]
 
-    for i, block_key in enumerate(list(blo.keys())[1:], start=1):
-        j1 = j2
-        j2 = j2 + blo[block_key]
-        tab = data[i]
-        auxi = decompose_data_to_principal_coords(tab, cw[j1:j2], lw, nf=nf)
+    for i, block_key in enumerate(list(blocks.keys())[1:], start=1):
+        start_index = end_index
+        end_index += blocks[block_key]
+        current_block_data = data[i]
+        block_decomposition = decompose_data_to_principal_coords(current_block_data,
+                                                                 column_weights[start_index:end_index], row_weights,
+                                                                 nf=num_factors)
 
-        # Append values to the respective lists
-        Eig.extend(auxi['eigenvalues'].tolist())
+        # Extend eigenvalues and concatenate dataframes
+        eigenvalues.extend(block_decomposition['eigenvalues'].tolist())
 
-        for key, short_name in mapping.items():
-            auxi_df = auxi[key].copy()
-            auxi_df.index = [f'X{idx + 1}.{block_key}' for idx in range(len(auxi_df))]
+        for key, short_name in coords_scores_mapping.items():
+            temp_dataframe = block_decomposition[key].copy()
+            temp_dataframe.index = [f'X{idx + 1}.{block_key}' for idx in range(len(temp_dataframe))]
             if short_name == 'Co':
-                Co = pd.concat([Co, auxi_df])
+                column_principal_coords = pd.concat([column_principal_coords, temp_dataframe])
             elif short_name == 'Li':
-                Li = pd.concat([Li, auxi_df])
+                row_scores = pd.concat([row_scores, temp_dataframe])
             elif short_name == 'C1':
-                C1 = pd.concat([C1, auxi_df])
+                column_scores = pd.concat([column_scores, temp_dataframe])
             elif short_name == 'L1':
-                L1 = pd.concat([L1, auxi_df])
+                row_principal_coords = pd.concat([row_principal_coords, temp_dataframe])
 
-        if auxi['factor_numbers'] < nf:
-            auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
+        # Complete decomposition for current block if needed
+        if block_decomposition['factor_numbers'] < num_factors:
+            block_decomposition = complete_dudi(block_decomposition, block_decomposition['factor_numbers'] + 1,
+                                                num_factors)
 
-        rank.append(auxi['rank'])
+        decomposition_ranks.append(block_decomposition['rank'])
 
-    # Convert lists to desired data structures after the loop
-    Eig = np.array(Eig)
-    rank = np.array(rank)
+    # Convert lists to numpy arrays
+    eigenvalues_array = np.array(eigenvalues)
+    decomposition_ranks_array = np.array(decomposition_ranks)
 
-    res = {
-        'row_principal_coordinates': L1,
-        'column_scores': C1,
-        'column_principal_coordinates': Co,
-        'row_scores': Li,
-        'eigenvalues': Eig,
+    # Aggregate results
+    analysis_results = {
+        'row_principal_coordinates': row_principal_coords,
+        'column_scores': column_scores,
+        'column_principal_coordinates': column_principal_coords,
+        'row_scores': row_scores,
+        'eigenvalues': eigenvalues_array,
         'TL': data['TL'],
         'TC': data['TC'],
         'T4': data['T4'],
-        'blocks': blo,
-        'rank': rank,
-        'tab_names': list(data.keys())[:ntab],
+        'blocks': blocks,
+        'rank': decomposition_ranks_array,
+        'tab_names': list(data.keys())[:num_tables],
         'class': ["sepan", "list"]
     }
 
-    return res
+    return analysis_results

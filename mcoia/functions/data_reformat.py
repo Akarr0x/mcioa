@@ -45,8 +45,6 @@ def add_factor_to_ktab(ktab_dict):
     TL_df = pd.DataFrame({'T': T_factor, 'L': L_factor})  # Combine into a DataFrame
     ktab_dict['TL'] = TL_df
 
-    # todo: Tomorrow check this, but right now let's fix it like this, cause col_names is not right!
-
     T_factor = np.repeat(block_names, block_sizes)  # Repeat each block name for each row in that block
     C_factor = np.concatenate(col_names)
 
@@ -80,7 +78,7 @@ def compile_tables(objects, rownames=None, colnames=None):
 
     for idx in range(num_blocks):
         if not np.array_equal(objects[idx]['row_weight'], row_weights):  # ensure all row weights are equal
-            raise ValueError("Non equal row weights among arrays")
+            raise ValueError("Non-equal row weights among arrays")
 
         compiled_tables[idx] = objects[idx]['weighted_table']  # add weighted table to result dictionary
         column_weights.extend(objects[idx]['column_weight'])  # add column weights to the list
@@ -106,7 +104,7 @@ def compile_tables(objects, rownames=None, colnames=None):
         if 'class' in dictionary.keys():
             tablenames.append(dictionary['class'])
         else:
-            tablenames.append(f"Ana{len(tablenames) + 1}")  # todo: This is the part that could be problematic
+            tablenames.append(f"Ana{len(tablenames) + 1}")
 
     # check and set tablenames
     if tablenames is None:
@@ -192,8 +190,8 @@ def complete_dudi(dudi, nf1, nf2):
                                               axis=1)
 
     # Extend 'component_scores' with zero-filled columns
-    dudi['column_score'] = pd.concat([dudi['column_score'],
-                                          create_zero_df(dudi['column_score'].shape[0], nf1, nf2)],
+    dudi['column_scores'] = pd.concat([dudi['column_scores'],
+                                          create_zero_df(dudi['column_scores'].shape[0], nf1, nf2)],
                                          axis=1)
 
     return dudi

@@ -74,11 +74,11 @@ class MCIAnalysis:
     def results(self, projected_dataset = False):
 
         if projected_dataset:
-            analysis_results = multiple_coinertia_analysis(X=self.ktcoa, nf=self.nf, data_projected=projected_dataset)
+            analysis_results = multiple_coinertia_analysis(data_table=self.ktcoa, number_factors=self.nf, is_data_projected=projected_dataset)
             return analysis_results
 
         if self.ktcoa is not None:
-            analysis_results = multiple_coinertia_analysis(X=self.ktcoa, nf=self.nf)
+            analysis_results = multiple_coinertia_analysis(data_table=self.ktcoa, number_factors=self.nf)
             self.pseudo_eigenvalues = analysis_results['pseudo_eigenvalues']
             self.lambda_df = analysis_results['lambda']
             self.SynVar = analysis_results['SynVar']
