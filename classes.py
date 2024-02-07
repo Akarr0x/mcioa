@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
-from mcoia.functions.mcia import mcia
-from mcoia.functions.data_reformat import compile_tables
-from mcoia.functions.mcoia import multiple_coinertia_analysis
+from mcioa.functions.mcia import mcia
+from mcioa.functions.data_reformat import compile_tables
+from mcioa.functions.mcoia import multiple_coinertia_analysis
 
 class MCIAnalysis:
-    def __init__(self, dataset, nf=2):
+    def __init__(self, dataset, nf=2, analysis_type = "nsc", projected_dataset = False, weight_option = None):
         self.dataset = dataset
         self.nf = nf
         self.multiple_co_inertia_result = None
@@ -34,14 +34,18 @@ class MCIAnalysis:
         self.column_projection = pd.DataFrame()
         self.Tax = pd.DataFrame()
         self.nf = nf
+        self.analysis_type = analysis_type
         self.TL = None
         self.TC = None
         self.T4 = None
         self.class_type = []
         self.final_results = None
+        self.fit()
+        self.transform()
+        self.results(projected_dataset=projected_dataset, weight_option = weight_option)
 
-    def fit(self, analysis_type = "nsc"):
-        self.multiple_co_inertia_result = mcia(self.dataset, self.nf, analysis_type=analysis_type)  # Calling the original mcia function
+    def fit(self):
+        self.multiple_co_inertia_result = mcia(self.dataset, self.nf, analysis_type=self.analysis_type)
 
         if self.multiple_co_inertia_result is not None:
             for res_dict in self.multiple_co_inertia_result:
@@ -71,14 +75,13 @@ class MCIAnalysis:
             print("Please fit the model before transforming.")
             return False
 
-    def results(self, projected_dataset = False):
-
+    def results(self, projected_dataset = False, weight_option = None):
         if projected_dataset:
-            analysis_results = multiple_coinertia_analysis(X=self.ktcoa, nf=self.nf, data_projected=projected_dataset)
+            analysis_results = multiple_coinertia_analysis(datasets=self.ktcoa, weight_option = weight_option ,n_dim=self.nf, data_projected=projected_dataset)
             return analysis_results
 
         if self.ktcoa is not None:
-            analysis_results = multiple_coinertia_analysis(X=self.ktcoa, nf=self.nf)
+            analysis_results = multiple_coinertia_analysis(datasets=self.ktcoa, n_dim=self.nf)
             self.pseudo_eigenvalues = analysis_results['pseudo_eigenvalues']
             self.lambda_df = analysis_results['lambda']
             self.SynVar = analysis_results['SynVar']
@@ -101,11 +104,12 @@ class MCIAnalysis:
             return False
 
     def project(self, projected_dataset):
-        projected_dataset = MCIAnalysis([projected_dataset])
-        projected_dataset.fit()
-        projected_dataset.transform()
-        tab = projected_dataset.results(projected_dataset = True)
+        analysis_instance = MCIAnalysis([projected_dataset], self.nf, self.analysis_type, projected_dataset=True)
+        analysis_results = analysis_instance.results(projected_dataset=True)
+
         weighted_urk = np.array(self.SynVar) * np.array(self.row_weight).T
-        projected_coordinates = tab.T.dot(weighted_urk)
+
+        projected_coordinates = analysis_results.T.dot(weighted_urk)
+
         return projected_coordinates
 

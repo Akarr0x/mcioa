@@ -2,11 +2,10 @@ import pandas as pd
 import numpy as np
 
 
-def normalize_matrix_by_block(scorcol, number_of_blocks, block_indicator, veclev, tol=1e-7):
+def normalize_matrix_by_block(Vt, number_Datasets, block_indicator, dataset_Index, tol=1e-7):
     """
-    Normalize `scorcol` by block, based on the block indicators `indicablo`
-    and the unique block levels `veclev`.
-    This function is used to be sure that u_k is unitary
+    Normalizes v_k so that it's sum is unitary.
+    This is done so that each right singular vector is normalized by dataset
 
     Parameters:
     - scorcol: np.array, scores or values to be normalized.
@@ -18,22 +17,23 @@ def normalize_matrix_by_block(scorcol, number_of_blocks, block_indicator, veclev
     Returns:
     - np.array, the normalized `scorcol`.
     """
-    for i in range(number_of_blocks):
-        block_values = scorcol[block_indicator == veclev[i]]
+    for i in range(number_Datasets):
+        block_values = Vt[block_indicator == dataset_Index[i]]
         block_norm = np.sqrt(np.sum(block_values ** 2))
 
         if block_norm > tol:
             block_values /= block_norm
 
-        scorcol[block_indicator == veclev[i]] = block_values
+        Vt[block_indicator == dataset_Index[i]] = block_values
 
-    return scorcol
+    return Vt
 
 
-def recalculate(tab, scorcol, nbloc, indicablo, veclev):
+def recalculate(dataset, normalized_Vt, number_Datasets, block_Indicator, dataset_Index):
     """
-    Adjust values in `tab` based on `scorcol` by block.
-    This function is used to add the "deflation" method used by mcioa
+    Enables the elimination of each component in a dataset specific manner.
+    Essentially applies the power iteration algorithm so that the influence of each component
+    (normalized per dataset) is eliminated iteratively.
 
     Parameters:
     - tab: pd.DataFrame, table to be adjusted.
@@ -45,19 +45,19 @@ def recalculate(tab, scorcol, nbloc, indicablo, veclev):
     Returns:
     - pd.DataFrame, the adjusted table.
     """
-    tab_np = tab.values
-    indicablo_np = indicablo.values
-    for k in range(nbloc):
-        mask = indicablo_np == veclev[k]
-        subtable = tab_np[:, mask]
-        u_values = scorcol[mask]
+    tab_np = dataset.values
+    indicablo_np = block_Indicator.values
+    for k in range(number_Datasets):
+        mask = indicablo_np == dataset_Index[k]
+        sub_dataset = tab_np[:, mask]
+        vt_k = normalized_Vt[mask]
 
-        sum_values = (subtable * u_values).sum(axis=1)
-        adjusted_subtable = subtable - np.outer(sum_values, u_values)
+        sum_values = (sub_dataset * vt_k).sum(axis=1)
+        adjusted_subtable = sub_dataset - np.outer(sum_values, vt_k)
 
         tab_np[:, mask] = adjusted_subtable
 
-    return pd.DataFrame(tab_np, columns=tab.columns)
+    return pd.DataFrame(tab_np, columns=dataset.columns)
 
 
 def ktab_util_names(x):
@@ -79,7 +79,6 @@ def ktab_util_names(x):
         subset = x['TL'][x['TL']['T'] == t_val]
         row_names.extend([f"{l_val}.{suffixes[idx]}" for l_val in subset['L']])
 
-    # Generate column names
     secondary_keys = x['col.names']
 
     unique_suffixes = [f"{str(i)}" for i in set(x['TC']['T'])]
@@ -91,8 +90,6 @@ def ktab_util_names(x):
     w = x['tab.names']
     tab_names_ktab = list()
 
-    # Repeat the entire array 'w' 4 times
-    # todo Check this with higher number of dataset
     for i in range(len(w)):
         for k in range(1, 5):
             tab_names_ktab.append(f"{w[i]}.{k}")

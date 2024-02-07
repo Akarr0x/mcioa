@@ -2,97 +2,56 @@ import pandas as pd
 import numpy as np
 from .data_preprocessing import decompose_data_to_principal_coords
 from .data_reformat import complete_dudi
-# changed variable nam
 
-def multi_block_eigenanalysis(data, nf=20):
-    """
-    Compute successive eigenanalysis of partitioned data.
 
-    Parameters:
-    - data (dict): Contains the data, weights, block definitions, and other information.
-    - nf (int): Number of factors to be computed.
-
-    Returns:
-    - dict: Results containing coordinates, scores, eigenvalues, etc.
-    """
-
-    # Ensure that the input data is of the expected type
-    if data.get('class') != "ktab":
-        raise ValueError("Expected object of class 'ktab'")
-
-    lw = data['row_weight']
-    cw = data['column_weight']
-    blo = data['blocks']
-    ntab = len(blo)
-    j1 = 0
-    j2 = list(blo.values())[0]
-
-    auxi = decompose_data_to_principal_coords(data[0], col_w=cw[j1:j2], row_w=lw, nf=nf, class_type="sepan")
-
+def perform_decomposition(tab, column_weight, row_weight, nf, block_key=None):
+    auxi = decompose_data_to_principal_coords(tab, col_w=column_weight, row_w=row_weight, nf=nf, class_type="sepan")
     if auxi['factor_numbers'] < nf:
         auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
 
-    Eig = list(auxi['eigenvalues'])
-    Co = auxi['column_principal_coordinates']
-    Li = auxi['row_scores']
-    C1 = auxi['column_scores']
-    L1 = auxi['row_principal_coordinates']
+    if block_key:
+        for key in ['column_principal_coordinates', 'row_scores', 'column_scores', 'row_principal_coordinates']:
+            df = auxi[key]
+            df.index = [f'X{idx + 1}.{block_key}' for idx in range(len(df))]
 
-    rank = [auxi['rank']]
+    return auxi
 
-    mapping = {
-        'column_principal_coordinates': 'Co',
-        'row_scores': 'Li',
-        'column_scores': 'C1',
-        'row_principal_coordinates': 'L1'
-    }
 
-    for df in [Li, L1, Co, C1]:
-        df.index = [f'{index}.{j1}' for index in df.index]
+def multi_block_eigenanalysis(data, nf=20):
+    """
+     Calculates eigenvalues for each dataset independently, used to give different weights to the dataset
+     """
 
-    for i, block_key in enumerate(list(blo.keys())[1:], start=1):
-        j1 = j2
-        j2 = j2 + blo[block_key]
-        tab = data[i]
-        auxi = decompose_data_to_principal_coords(tab, cw[j1:j2], lw, nf=nf)
+    Eig, rank = [], []
+    Co, Li, C1, L1 = pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-        # Append values to the respective lists
-        Eig.extend(auxi['eigenvalues'].tolist())
+    j2 = 0
+    for i, (block_key, size) in enumerate(data['blocks'].items()):
+        j1, j2 = j2, j2 + size
+        column_weight_segment = data['column_weight'][j1:j2]
 
-        for key, short_name in mapping.items():
-            auxi_df = auxi[key].copy()
-            auxi_df.index = [f'X{idx + 1}.{block_key}' for idx in range(len(auxi_df))]
-            if short_name == 'Co':
-                Co = pd.concat([Co, auxi_df])
-            elif short_name == 'Li':
-                Li = pd.concat([Li, auxi_df])
-            elif short_name == 'C1':
-                C1 = pd.concat([C1, auxi_df])
-            elif short_name == 'L1':
-                L1 = pd.concat([L1, auxi_df])
+        auxi = perform_decomposition(data[i], column_weight_segment, data['row_weight'], nf, block_key)
 
-        if auxi['factor_numbers'] < nf:
-            auxi = complete_dudi(auxi, auxi['factor_numbers'] + 1, nf)
-
+        Eig.extend(auxi['eigenvalues'])
         rank.append(auxi['rank'])
 
-    # Convert lists to desired data structures after the loop
-    Eig = np.array(Eig)
-    rank = np.array(rank)
+        for key, df in [('column_principal_coordinates', Co), ('row_scores', Li),
+                        ('column_scores', C1), ('row_principal_coordinates', L1)]:
+            auxi_df = auxi[key]
+            df = pd.concat([df, auxi_df])
 
     res = {
-        'row_principal_coordinates': L1,
-        'column_scores': C1,
+        'eigenvalues': np.array(Eig),
+        'rank': np.array(rank),
         'column_principal_coordinates': Co,
         'row_scores': Li,
-        'eigenvalues': Eig,
+        'column_scores': C1,
+        'row_principal_coordinates': L1,
         'TL': data['TL'],
         'TC': data['TC'],
         'T4': data['T4'],
-        'blocks': blo,
-        'rank': rank,
-        'tab_names': list(data.keys())[:ntab],
+        'blocks': data['blocks'],
+        'tab_names': list(data.keys())[:len(data['blocks'])],
         'class': ["sepan", "list"]
     }
-
     return res
