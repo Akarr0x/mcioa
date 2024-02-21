@@ -1,3 +1,7 @@
+# TODO: General: build, pycache and mcioa.egg-info should probably not be on github.
+# TODO: Documentation often missing.
+# TODO: Rename files. two mcoia etc.
+
 import pandas as pd
 import numpy as np
 from mcioa.functions.mcia import mcia
@@ -54,6 +58,7 @@ class MCIAnalysis:
 
     # preprocessing
     def fit(self):
+        # FIXME: Rename. Doesnt do mcia.
         self.multiple_co_inertia_result = mcia(
             self.dataset, self.nf, analysis_type=self.analysis_type
         )
@@ -99,7 +104,8 @@ class MCIAnalysis:
                 data_projected=projected_dataset,
             )
             return analysis_results
-
+        
+        # TODO: Still does not utilize the class attributes.
         if self.ktcoa is not None:
             analysis_results = multiple_coinertia_analysis(
                 datasets=self.ktcoa, n_dim=self.nf
@@ -125,6 +131,8 @@ class MCIAnalysis:
             return False
 
     # Projects a new dataset to the space defined by the MCI analysis.
+    # FIXME: Two variables with the same name that mean different things?
+    # TODO: Needs explaining. Not sure if it does the correct thing.
     def project(self, projected_dataset):
         analysis_instance = MCIAnalysis(
             [projected_dataset], self.nf, self.analysis_type, projected_dataset=True
