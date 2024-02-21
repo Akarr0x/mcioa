@@ -5,12 +5,7 @@ Summary: An implementation of Multiple Co-Inertia Analysis for multiomis data in
 Home-page: https://github.com/Akarr0x/mcioa
 Author: Alessandro Diamanti
 Author-email: alessandrodiamanti1@gmail.com
-License: UNKNOWN
-Platform: UNKNOWN
 Classifier: Programming Language :: Python 3
 Classifier: License :: MIT License
 Classifier: Operating System :: OS Independent
 Requires-Python: >=3.9
-
-UNKNOWN
-

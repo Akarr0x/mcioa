@@ -184,7 +184,7 @@ def multiple_coinertia_analysis(datasets, weight_option=None, n_dim=3, data_proj
         current_rank = min(multi_block_eigen_data['rank'][dataset_index], n_dim)
         lambda_matrix[dataset_index, :current_rank] = current_eigenvalues[:current_rank]
 
-    # TODO: with that many arguments you should really use named arguments.
+
     create_analysis_dataframes(analysis_result, lambda_matrix, average_View_U, v_k_Normalized, multi_block_eigen_data, datasets,
                         auxiliary_names, n_dim)
 

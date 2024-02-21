@@ -9,7 +9,6 @@ from mcoia.functions import *
 
 np.random.seed(0)
 
-# Signs of SVD are arbitrary, given its properties
 
 def test_mcia_tli():
     dataset1_values = [
@@ -89,6 +88,65 @@ def test_mcia_tli():
     expected_result = pd.DataFrame(expected_result_data, index=index_values)
 
     pd.testing.assert_frame_equal(Tli, expected_result, atol=1e-6)
+
+
+def test_mcia_tco_pca():
+
+    dataset1_values = [
+        [1, 2, 3, 4, 5],
+        [5, 4, 3, 2, 1],
+        [2, 3, 4, 5, 6],
+        [6, 5, 4, 3, 2]
+    ]
+
+    dataset2_values = [
+        [10, 9, 8, 7, 6],
+        [6, 7, 8, 9, 10],
+        [7, 8, 9, 10, 11],
+        [11, 10, 9, 8, 7]
+    ]
+    gene_names = [f"Gene_{i}" for i in range(1, 6)]
+    cell_names = [f"Cell{i}" for i in range(1, 5)]
+    # Create DataFrames
+    dataset1 = pd.DataFrame(dataset1_values, columns=gene_names, index=cell_names)
+    dataset2 = pd.DataFrame(dataset2_values, columns=gene_names, index=cell_names)
+
+    data_list = [dataset1, dataset2]
+
+    mcia_instance = MCIAnalysis(data_list)
+
+    mcia_instance.fit(analysis_type="pca")
+
+    mcia_instance.transform()
+
+    mcia_instance.results()
+
+    tco_result = mcia_instance.column_projection
+
+    expected_result_data = {
+        'SV1': [-0.8345481, 0.8345481, -0.8345481, 0.8345481,
+                         0.8345481, -0.8345481, -0.8345481, 0.8345481],
+
+        'SV2': [-0.550935, -0.550935, 0.550935, 0.550935,
+                         -0.550935, -0.550935, 0.550935, 0.550935]
+    }
+
+    expected_result = pd.DataFrame(expected_result_data).reset_index(drop=True)
+
+    def normalize_sign(df, column):
+        sign = np.sign(df[column].loc[df[column].ne(0).idxmax()])
+        df[column] *= sign
+        return df
+
+    tco_result_normalized = normalize_sign(tco_result.copy(), "SV1")
+    expected_result_normalized = normalize_sign(expected_result.copy(), "SV1")
+
+    tco_result_normalized.reset_index(drop=True, inplace=True)
+    expected_result_normalized.reset_index(drop=True, inplace=True)
+
+    pd.testing.assert_frame_equal(tco_result_normalized, expected_result_normalized, atol=1e-6)
+
+
 
 def test_mcia_eigenvalues():
     dataset1_values = [
@@ -379,6 +437,28 @@ def test_mcia_random_datasets_time():
 
     print(time.time() - start)
 
+
+def test_mcia_pca():
+    import time
+    start = time.time()
+
+    dataset1_values = np.random.randint(0, 50, size=(150, 100))
+    gene_names = [f"Gene_{i}" for i in range(1, 101)]
+    dataset1 = pd.DataFrame(dataset1_values, columns=gene_names)
+
+    dataset2_values = np.random.randint(0, 50, size=(150, 100))
+    dataset2 = pd.DataFrame(dataset2_values, columns=gene_names)
+
+    data_list = [dataset1, dataset2]
+
+    mcia_instance = MCIAnalysis(data_list)
+
+    mcia_instance.fit(analysis_type = "pca")
+    mcia_instance.transform()
+    mcia_instance.results()
+
+    elapsed_time = time.time() - start
+    print(f"Time elapsed: {elapsed_time} seconds")
 
 
 def test_mcia_random_datasets_time_2():
