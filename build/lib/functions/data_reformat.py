@@ -110,7 +110,7 @@ def compile_tables(objects, rownames=None, colnames=None):
 
     return compiled_tables
 
-# FIXME: dudi ...
+
 def complete_dudi(dudi, nf1, nf2):
     """
     Augment the DUDI results with additional zero-filled columns for specified dimensions.

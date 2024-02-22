@@ -71,8 +71,7 @@ def perform_nsc_analysis(df, nf=2):
 
     if (df.values < 0).any():
         raise ValueError("Negative entries in table")
-    
-    # TODO: Frequencies?
+
     N = df.values.sum()
     if N == 0:
         raise ValueError("All frequencies are zero")
@@ -114,7 +113,7 @@ def decompose_data_to_principal_coords(df, col_w, row_w, nf=2, full=False, tol=1
 
     if lig < col:
         transpose = True
-    # TODO: 3 copys of the same dataset.
+
     res = {'weighted_table': df.copy(), 'column_weight': col_w, 'row_weight': row_w}
     df_ori = df.copy()
     df = df.multiply(np.sqrt(row_w), axis=0)
@@ -182,7 +181,7 @@ def decompose_data_to_principal_coords(df, col_w, row_w, nf=2, full=False, tol=1
 
     res['call'] = None
     if class_type is None:
-        res['class'] = ['dudi'] # FIXME: No dudi/sepan please.
+        res['class'] = ['dudi']
     else:
         res['class'] = [class_type, "dudi"]
     return res
@@ -231,7 +230,7 @@ def get_data(dataset):
 
     return dataset
 
-# TODO: Minor note, slightly vague description of what its doing.
+
 def checks(dataset, pos=False, trans=False):
     """
     Processes and transforms the dataset.

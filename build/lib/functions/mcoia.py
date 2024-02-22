@@ -41,7 +41,6 @@ def row_normed_column_projection(number_rows, number_Datasets, n_dim, row_weight
 
     return analysis_result
 
-# TODO: Missing documentation
 def calculate_row_projection(number_rows, number_Datasets, n_dim, block_Indicator, dataset_index, analysis_result,
                        datasets, column_weight, row_weight, auxiliary_names):
     matrix = np.zeros((number_rows * number_Datasets, n_dim))
@@ -104,8 +103,7 @@ def multiple_coinertia_analysis(datasets, weight_option=None, n_dim=3, data_proj
     number_Datasets = len(datasets['blocks'])
     block_Indicator = datasets['TC']['T']
     dataset_indix = sorted(list(set(datasets['TC']['T'])))
-    
-    # TODO: Why nf so low?
+
     multi_block_eigen_data = multi_block_eigenanalysis(datasets, nf=4)
 
     rank_per_block = list(np.repeat(range(1, number_Datasets + 1), multi_block_eigen_data["rank"]))
@@ -186,11 +184,10 @@ def multiple_coinertia_analysis(datasets, weight_option=None, n_dim=3, data_proj
         current_rank = min(multi_block_eigen_data['rank'][dataset_index], n_dim)
         lambda_matrix[dataset_index, :current_rank] = current_eigenvalues[:current_rank]
 
-    # TODO: with that many arguments you should really use named arguments.
-    # TODO: Is this editing the data frames in place? *_projection actually returns it?
+
     create_analysis_dataframes(analysis_result, lambda_matrix, average_View_U, v_k_Normalized, multi_block_eigen_data, datasets,
                         auxiliary_names, n_dim)
-    
+
     calculate_row_projection(number_rows, number_Datasets, n_dim, block_Indicator, dataset_indix, analysis_result, datasets,
                         column_weight, row_weight, auxiliary_names)
 

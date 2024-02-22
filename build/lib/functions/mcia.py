@@ -50,15 +50,13 @@ def mcia(dataset, nf=10, analysis_type = "nsc"):
         raise ValueError(f"Analysis type not found: {analysis_type}")
 
     preprocessing_results = {f'dataset_{i}': analysis_functions[analysis_type](df, nf=nf) for i, df in enumerate(dataset)}
-    
-    #FIXME: Unnecessary variable? Also naming.
+
     nsca_results_t = preprocessing_results
     nsca_results = preprocessing_results
 
     for name, result in nsca_results.items():
         nsca_results_t[name] = transpose_analysis_result(result)
-    
-    # TODO: Unneccessary copy?
+
     nsca_results_list = list(nsca_results.values())
 
     return nsca_results_list

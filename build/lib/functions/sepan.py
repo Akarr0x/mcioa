@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from .data_preprocessing import decompose_data_to_principal_coords
 from .data_reformat import complete_dudi
-# FIXME: Its still called sepan...
+
 
 def perform_decomposition(tab, column_weight, row_weight, nf, block_key=None):
     auxi = decompose_data_to_principal_coords(tab, col_w=column_weight, row_w=row_weight, nf=nf, class_type="sepan")
