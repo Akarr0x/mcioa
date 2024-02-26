@@ -6,7 +6,7 @@
 __pycache__/
 build/
 mcioa.egg-info/
-*.rst
+jupyter_examples.ipynb
 .DS_Store
 .Rhistory
 
