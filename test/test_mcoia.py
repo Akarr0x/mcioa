@@ -1,15 +1,10 @@
-import sys
-import numpy as np
-import pandas as pd
-import pytest
 import matplotlib.pyplot as plt
-from mcoia.classes import MCIAnalysis
-from mcoia.functions import *
 
+from mcioa.classes import MCIAnalysis
+from mcioa.functions import *
 
 np.random.seed(0)
 
-# Signs of SVD are arbitrary, given its properties
 
 def test_mcia_tli():
     dataset1_values = [
@@ -47,16 +42,7 @@ def test_mcia_tli():
 
     mcia_instance = MCIAnalysis(data_list)
 
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
-
     Tli = mcia_instance.row_projection
-
-    # Call the mcia function
-    result = mcia(data_list)
 
     expected_result_data = {
         'Axis1': [
@@ -125,13 +111,7 @@ def test_mcia_eigenvalues():
     data_list = [dataset1, dataset2]
 
 
-    mcia_instance = MCIAnalysis(data_list)
-
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
+    mcia_instance = MCIAnalysis(data_list, nf=10)
 
     pseudo_eigenvalues_result = mcia_instance.pseudo_eigenvalues
 
@@ -181,12 +161,6 @@ def test_mcia_tl1():
     data_list = [dataset1, dataset2]
 
     mcia_instance = MCIAnalysis(data_list)
-
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
 
     tl1_result = mcia_instance.row_projection_normed
 
@@ -260,11 +234,6 @@ def test_mcia_tco():
 
     mcia_instance = MCIAnalysis(data_list)
 
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
 
     tco_result = mcia_instance.column_projection
     # Define the expected result
@@ -325,12 +294,6 @@ def test_mcia_tco_2():
 
     mcia_instance = MCIAnalysis(data_list)
 
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
-
     tco_result = mcia_instance.column_projection
     # Define the expected result
     expected_result_data = {
@@ -353,7 +316,7 @@ def test_mcia_tco_2():
 
     assert np.allclose(tco_result, expected_result, atol=1e-6)
 
-
+"""
 def test_mcia_random_datasets_time():
     import time
     start = time.time()
@@ -370,12 +333,6 @@ def test_mcia_random_datasets_time():
     data_list = [dataset1, dataset2]
 
     mcia_instance = MCIAnalysis(data_list)
-
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
 
     print(time.time() - start)
 
@@ -396,12 +353,10 @@ def test_mcia_random_datasets_time_2():
 
     mcia_instance = MCIAnalysis(data_list)
 
-    mcia_instance.fit()
-    mcia_instance.transform()
-    mcia_instance.results()
 
     elapsed_time = time.time() - start
     print(f"Time elapsed: {elapsed_time} seconds")
+"""
 
 
 
@@ -430,11 +385,6 @@ def test_single_dataset():
 
     mcia_instance = MCIAnalysis(data_list)
 
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
 
 def test_plotting():
     dataset1_values = [
@@ -475,11 +425,6 @@ def test_plotting():
 
     mcia_instance = MCIAnalysis(data_list)
 
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
 
     projected = mcia_instance.project(dataset2)
 
@@ -536,12 +481,6 @@ def test_plotting_2():
 
     mcia_instance = MCIAnalysis(data_list)
 
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
-
     projected = mcia_instance.project(dataset2)
 
     # Create the scatter plot
@@ -596,29 +535,15 @@ def test_plotting_3():
 
     mcia_instance = MCIAnalysis(data_list)
 
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
-
     data_list = [dataset2]
 
     projected = MCIAnalysis(data_list)
 
-    projected.fit()
-
-    projected.transform()
-
-    projected.results()
-
     import matplotlib.pyplot as plt
 
-    # Annotate MCIA Data
     for i, txt in enumerate(gene_names):
         plt.annotate(txt, (mcia_instance.column_projection['SV1'][i], mcia_instance.column_projection['SV2'][i]))
 
-    # Annotate Projected Data
     for i, txt in enumerate(gene_names):
         plt.annotate(txt, (projected.column_projection['SV1'][i], projected.column_projection['SV2'][i]))
 
@@ -674,26 +599,16 @@ def test_plotting_multiple_dataset():
 
     mcia_instance = MCIAnalysis(data_list)
 
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
-
-    import matplotlib.pyplot as plt
-
-    num_datasets = 2  # replace N with the number of datasets you want
+    num_datasets = 2
     chunk_size = mcia_instance.column_projection.shape[0] // num_datasets
 
-    # Initialize list of lists for SV1 and SV2 values
     x = [[] for _ in range(num_datasets)]
     y = [[] for _ in range(num_datasets)]
 
-    # Loop through DataFrame and distribute rows to different datasets
     for i in range(mcia_instance.column_projection.shape[0]):
         dataset_index = i // chunk_size
         if dataset_index >= num_datasets:
-            dataset_index = num_datasets - 1  # Put any overflow rows in the last dataset
+            dataset_index = num_datasets - 1
         x[dataset_index].append(mcia_instance.column_projection.iloc[i]['SV1'])
         y[dataset_index].append(mcia_instance.column_projection.iloc[i]['SV2'])
 

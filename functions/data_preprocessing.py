@@ -1,10 +1,23 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from scipy.linalg import eigh
 from sklearn.decomposition import TruncatedSVD
-from scipy.stats import chi2_contingency
+
 
 def perform_ca_analysis(data_frame, nf=2):
+    """
+    Performs Correspondence Analysis (CA) on a provided DataFrame to analyze the relationships between rows and columns through dimensionality reduction.
+
+    Parameters:
+    - data_frame (pd.DataFrame): The DataFrame representing a two-dimensional contingency table.
+    - nf (int, default=2): The number of dimensions (factors) to reduce the data to during the CA process.
+
+    Returns:
+    - np.array: The principal components extracted from the CA, representing the dataset in the reduced dimensionality space.
+
+    Description:
+    The function calculates the relative frequencies of the data, adjusts for the marginal totals, and applies a singular value decomposition (SVD) to derive the principal components. This process allows for the visualization and analysis of the patterns of association between the row and column categories in a lower-dimensional space.
+    """
     X = data_frame.values
     row_totals = X.sum(axis=1)
     col_totals = X.sum(axis=0)
@@ -26,7 +39,7 @@ def perform_ca_analysis(data_frame, nf=2):
 
 def perform_pca_analysis(data_frame, nf=2):
     """
-    Performs Principal Component Analysis (PCA) on a given DataFrame.
+    Performs Principal Component Analysis (PCA) normalization on a given DataFrame.
 
     Parameters:
     - data_frame (pd.DataFrame): The DataFrame on which PCA is to be performed.
@@ -38,19 +51,16 @@ def perform_pca_analysis(data_frame, nf=2):
     Raises:
     - ValueError: If there are NA (Not Available) entries in the DataFrame.
     """
-    total_values_sum = data_frame.values.sum()
     row_weights = np.ones(data_frame.shape[0]) / data_frame.shape[0]
     column_weights = np.ones(data_frame.shape[1])
 
     if data_frame.isna().sum().sum() > 0:
         raise ValueError("The DataFrame contains NA entries.")
 
-    # Centering the DataFrame
     calculate_column_mean = lambda col: np.sum(col * row_weights) / np.sum(row_weights)
     column_means = data_frame.apply(calculate_column_mean)
     centered_data_frame = data_frame.subtract(column_means, axis=1)
 
-    # Scaling the DataFrame
     calculate_column_norm = lambda col: np.sqrt(np.sum(col ** 2 * row_weights) / np.sum(row_weights))
     column_norms = centered_data_frame.apply(calculate_column_norm)
     column_norms[column_norms < 1e-08] = 1
@@ -61,7 +71,7 @@ def perform_pca_analysis(data_frame, nf=2):
 
 def perform_nsc_analysis(df, nf=2):
     """
-    Performs Non-Symmetric Correspondence Analysis on the data.
+    Performs Non-Symmetric Correspondence Analysis normalization on the data.
 
     Parameters:
     - df (pd.DataFrame or np.ndarray): The input data.
@@ -78,20 +88,13 @@ def perform_nsc_analysis(df, nf=2):
 
     N = df.values.sum()
     if N == 0:
-        raise ValueError("All frequencies are zero")
+        raise ValueError("All entries are zero")
 
     row_w = df.sum(axis=1) / N
     col_w = df.sum(axis=0) / N
     df /= N
 
-    # Transpose if more rows than columns
     transpose = False
-    #if df.shape[1] > df.shape[0]:
-    #    transpose = True
-    #    df = df.T
-    #    col, row_w, col_w = df.shape[1], col_w, row_w  # Swap row and column weights
-
-    # Normalize and center data
     df = df.T.apply(lambda x: col_w if x.sum() == 0 else x / x.sum()).T
     df = df.subtract(col_w, axis=1)
     df *= col
@@ -165,15 +168,15 @@ def decompose_data_to_principal_coords(df, col_w, row_w, nf=2, full=False, tol=1
         component_scores = eig_vectors[:, -nf:] * col_w_sqrt_rec.reshape(-1, 1)
         factor_scores = df_ori.multiply(res['column_weight'], axis=1)
         factor_scores = pd.DataFrame(
-            factor_scores.values @ component_scores)  # Matrix multiplication and conversion to DataFrame
+            factor_scores.values @ component_scores)
 
         res['column_scores'] = pd.DataFrame(component_scores,
-                                               columns=[f'CS{i + 1}' for i in range(nf)])  # principal axes (A)
+                                               columns=[f'CS{i + 1}' for i in range(nf)])
         res['row_scores'] = factor_scores
-        res['row_scores'].columns = [f'Axis{i + 1}' for i in range(nf)]  # row scores (L)
+        res['row_scores'].columns = [f'Axis{i + 1}' for i in range(nf)]
         res['column_principal_coordinates'] = res['column_scores'].multiply(
-            eigen_sqrt[::-1])  # This is the column score (C)
-        res['row_principal_coordinates'] = res['row_scores'].div(eigen_sqrt[::-1])  # This is the principal components (K)
+            eigen_sqrt[::-1])
+        res['row_principal_coordinates'] = res['row_scores'].div(eigen_sqrt[::-1])
     else:
         row_w_sqrt_rec = 1 / np.sqrt(row_w)
         row_coordinates = np.array(pd.DataFrame(eig_vectors.T).iloc[:, :nf] * row_w_sqrt_rec.reshape(-1, 1))
@@ -237,9 +240,9 @@ def get_data(dataset):
     return dataset
 
 
-def Array2Ade4(dataset, pos=False, trans=False):
+def validate_data(dataset, pos=False, trans=False):
     """
-    Processes and transforms the dataset.
+    Ensures that the dataset meets certain criteria for further analyses. E.g: no NA
 
     Parameters:
     - dataset (list of pd.DataFrame): The input data.
@@ -249,25 +252,19 @@ def Array2Ade4(dataset, pos=False, trans=False):
     Returns:
     - list of pd.DataFrame: The processed data.
     """
-    # Ensure the dataset items are DataFrames
     dataset = get_data(dataset)
 
-    # Check if dataset is a single DataFrame, if so, convert it to a list of one dataframe
     if isinstance(dataset, pd.DataFrame):
         dataset = [dataset]
 
     for i in range(len(dataset)):
-        # Check for NA values
         if dataset[i].isnull().values.any():
-            print("Array data must not contain NA values.")
-            exit(1)
+            raise ValueError("Array data must not contain NA values.")
 
-        # Make negative values positive if 'pos' is True
         if pos and dataset[i].values.any() < 0:
             num = round(dataset[i].min().min()) - 1
             dataset[i] += abs(num)
 
-        # Transpose the dataset if 'trans' is True
         if trans:
             dataset[i] = dataset[i].T
 
