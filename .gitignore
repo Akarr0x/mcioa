@@ -1,0 +1,12 @@
+.*/
+!.gitignore
+.idea/
+.ipynb_checkpoints/
+.pytest_cache/
+__pycache__/
+build/
+mcioa.egg-info/
+jupyter_examples.ipynb
+.DS_Store
+.Rhistory
+.ipynb_checkpoints
