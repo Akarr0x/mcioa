@@ -38,39 +38,9 @@ Explore detailed documentation on how to use MCoIA, covering all its features an
 
 
 ``MCIAnalysis()``
-This function initializes the object that will be used for further analysis. Its primary purpose is to set up and initialize the necessary variables.
+This function initializes the object and runs the analysis.
 The ``MCIAnalysis()`` method requires a list of pandas DataFrame objects as its input. Each DataFrame should contain structured data corresponding to a particular block of the multi-block dataset you wish to analyze. Ensure that the DataFrames are pre-processed and aligned such that rows correspond to samples and columns to features for consistent analysis across blocks.
 
-
-.. code-block:: python
-
-   mcia_instance.fit()
-
-``fit()``
-This function prepares the data for the core MCoIA computations by normalizing each dataset
-independently. The default normalization method is Non-Symmetric Correspondence Analysis. However,
-this can be altered using the ``analysis_type`` parameter. By setting ``analysis_type`` to 'pca',
-a different normalization is applied where each cell is weighted equally.
-
-.. code-block:: python
-
-   mcia_instance.transform()
-
-
-``transform()``
-This function introduces necessary block differentiation within the datasets. It is essential for
-allocating distinct weights across the datasets appropriately and facilitates the computation of
-row and column coordinates in the subsequent analysis steps.
-
-.. code-block:: python
-
-   mcia_instance.results()
-
-
-``results()``
-This function executes the actual multiple co-inertia calculations as described in [Dray2007]_. It enables the
-visualization of the dataset in a reduced dimensional space, optimizing for maximum covariance between the
-datasets.
 
 The variables ``dataset1`` and ``dataset2`` are expected to be pandas DataFrame objects. The output will include the following variables:
 
@@ -142,11 +112,6 @@ Next, we create pandas DataFrames from these lists and perform the MCoIA analysi
 
     mcia_instance = MCIAnalysis(data_list)
 
-    mcia_instance.fit()
-
-    mcia_instance.transform()
-
-    mcia_instance.results()
     half_size = mcia_instance.column_projection.shape[0] // 2
 
     data1 = mcia_instance.column_projection.iloc[:half_size]

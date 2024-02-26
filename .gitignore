@@ -1,0 +1,14 @@
+.idea/
+
+.*/
+!.gitignore
+
+**/__pycache__/
+
+mcoia/build/
+mcoia/mcoia.egg-info/
+mcoia/index_2.rst
+mcioa.egg-info
+Build/lib
+.DS_Store
+.Rhistory
