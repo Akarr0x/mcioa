@@ -9,4 +9,4 @@ mcioa.egg-info/
 jupyter_examples.ipynb
 .DS_Store
 .Rhistory
-
+.ipynb_checkpoints
