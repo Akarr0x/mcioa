@@ -195,9 +195,7 @@ def multiple_coinertia_analysis(datasets, weight_option=None, n_dim=3, is_data_b
     number_Datasets = len(datasets['blocks'])
     block_Indicator = datasets['TC']['T']
     dataset_indix = sorted(list(set(datasets['TC']['T'])))
-
     multi_block_eigen_data = multi_block_eigenanalysis(datasets, nf=4)
-
     rank_per_block = list(np.repeat(range(1, number_Datasets + 1), multi_block_eigen_data["rank"]))
 
     auxiliary_names = ktab_util_names(datasets)
@@ -233,7 +231,6 @@ def multiple_coinertia_analysis(datasets, weight_option=None, n_dim=3, is_data_b
         x_Tilde = pd.concat([x_Tilde, pd.DataFrame(datasets[i])], axis=1)
 
     x_Tilde.columns = auxiliary_names['col']
-
     x_Tilde = x_Tilde.mul(np.sqrt(row_weight), axis=0)
     x_Tilde = x_Tilde.mul(np.sqrt(column_weight), axis=1)
 
