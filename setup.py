@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='mcioa',
+    name='mcoia',
     version='0.9.0',
     author='Alessandro Diamanti',
     author_email='alessandrodiamanti1@gmail.com',
