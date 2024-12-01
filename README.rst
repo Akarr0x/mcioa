@@ -18,7 +18,7 @@ To install the package, run the following commands in your terminal:
 .. code-block:: bash
 
    git clone https://github.com/Akarr0x/mcioa.git
-   cd mcioa
+   cd mcoia
    python -m pip install .
 
 User Guide
@@ -33,7 +33,7 @@ Explore detailed documentation on how to use MCoIA, covering all its features an
 
    data_list = [dataset1, dataset2]
 
-   mcia_instance = MCIAnalysis(data_list)
+   mcia_instance = MCoIAnalysis(data_list)
 
 
 
@@ -80,7 +80,7 @@ To illustrate how to use the MCoIA package, consider the following example where
 
 .. code-block:: python
 
-    dataset1_values = [
+    dataset1 = [
         [23, 43, 65, 22, 1, 78],
         [34, 23, 45, 65, 23, 43],
         [45, 67, 23, 54, 23, 65],
@@ -88,7 +88,7 @@ To illustrate how to use the MCoIA package, consider the following example where
         [67, 65, 34, 65, 12, 43]
     ]
 
-    dataset2_values = [
+    dataset2 = [
         [34, 56, 23, 12, 43, 23],
         [45, 34, 56, 54, 23, 54],
         [65, 43, 23, 43, 34, 23],
@@ -96,21 +96,23 @@ To illustrate how to use the MCoIA package, consider the following example where
         [43, 23, 65, 34, 23, 54]
     ]
 
-    gene_names = [f"Gene_{i}" for i in range(1, 6)]
-    col_names = [f"Cell_{i}" for i in range(1, 7)]
+   gene_names = [f"Gene_{i}" for i in range(1, 6)]
+   col_names = [f"Cell_{i}" for i in range(1, 7)]
+   dataset1 = pd.DataFrame(dataset1, gene_names, col_names)
+   dataset2 = pd.DataFrame(dataset2, gene_names, col_names)
 
 Next, we create pandas DataFrames from these lists and perform the MCoIA analysis:
 
 .. code-block:: python
 
     import pandas as pd
-    from mcioa import MCIAnalysis
+    from mcioa import MCoIAnalysis
 
     # Create DataFrames
 
     data_list = [dataset1, dataset2]
 
-    mcia_instance = MCIAnalysis(data_list)
+    mcia_instance = MCoIAnalysis(data_list)
 
     half_size = mcia_instance.column_projection.shape[0] // 2
 
@@ -120,8 +122,8 @@ Next, we create pandas DataFrames from these lists and perform the MCoIA analysi
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots()
-    ax.scatter(data1['SV1'], data1['SV2'], s=10, c="b", marker="s", label="first")
-    ax.scatter(data2['SV1'], data2['SV2'], s=10, c="r", marker="o", label="second")
+    ax.scatter(data1['SV1'], data1['SV2'], s=10, c="b", marker="s", label="first dataset")
+    ax.scatter(data2['SV1'], data2['SV2'], s=10, c="r", marker="o", label="second dataset")
     ax.legend()
     plt.show()
 
@@ -135,14 +137,15 @@ Setting Up Development Environment:
 .. code-block:: bash
 
    git clone https://github.com/Akarr0x/mcioa.git
-   cd mcioa
+   cd mcoia
    python -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
    pip install -r requirements.txt
    pip install .
 
    # Running tests to verify installation
-   pytest test
+   cd test
+   pytest  test_mcoia.py
 
 ---
 
