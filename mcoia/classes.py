@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
-from mcioa.functions.analysis_prep import dataset_validation_and_analysis_prep
-from mcioa.functions.reformat import compile_tables
-from mcioa.functions.mcoia import multiple_coinertia_analysis
+from .functions.analysis_prep import dataset_validation_and_analysis_prep
+from .functions.reformat import compile_tables
+from .functions.mcoia import multiple_coinertia_analysis
 
-class MCIAnalysis:
+class MCoIAnalysis:
     def __init__(self, dataset, nf=2, analysis_type = "nsc", is_data_being_projected = False, weight_option = None):
         self.dataset = dataset
         self.nf = nf
@@ -104,7 +104,7 @@ class MCIAnalysis:
             return False
 
     def project(self, projected_dataset):
-        analysis_instance = MCIAnalysis([projected_dataset], self.nf, self.analysis_type, is_data_being_projected=True)
+        analysis_instance = MCoIAnalysis([projected_dataset], self.nf, self.analysis_type, is_data_being_projected=True)
         analysis_results = analysis_instance.results(is_data_being_projected=True)
 
         weighted_urk = np.array(self.SynVar) * np.array(self.row_weight).T

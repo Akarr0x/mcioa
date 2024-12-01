@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
-from mcioa.classes import MCIAnalysis
-from mcioa.functions import *
+from mcoia.classes import MCoIAnalysis
+from mcoia.functions import *
 
 np.random.seed(0)
 
@@ -40,7 +42,7 @@ def test_mcia_tli():
 
     data_list = [dataset1, dataset2]
 
-    mcia_instance = MCIAnalysis(data_list)
+    mcia_instance = MCoIAnalysis(data_list)
 
     Tli = mcia_instance.row_projection
 
@@ -111,7 +113,7 @@ def test_mcia_eigenvalues():
     data_list = [dataset1, dataset2]
 
 
-    mcia_instance = MCIAnalysis(data_list, nf=10)
+    mcia_instance = MCoIAnalysis(data_list, nf=10)
 
     pseudo_eigenvalues_result = mcia_instance.pseudo_eigenvalues
 
@@ -160,7 +162,7 @@ def test_mcia_tl1():
 
     data_list = [dataset1, dataset2]
 
-    mcia_instance = MCIAnalysis(data_list)
+    mcia_instance = MCoIAnalysis(data_list)
 
     tl1_result = mcia_instance.row_projection_normed
 
@@ -232,7 +234,7 @@ def test_mcia_tco():
 
     data_list = [dataset1, dataset2]
 
-    mcia_instance = MCIAnalysis(data_list)
+    mcia_instance = MCoIAnalysis(data_list)
 
 
     tco_result = mcia_instance.column_projection
@@ -292,7 +294,7 @@ def test_mcia_tco_2():
 
     data_list = [dataset1, dataset2]
 
-    mcia_instance = MCIAnalysis(data_list)
+    mcia_instance = MCoIAnalysis(data_list)
 
     tco_result = mcia_instance.column_projection
     # Define the expected result
@@ -383,7 +385,7 @@ def test_single_dataset():
 
     data_list = [dataset1]
 
-    mcia_instance = MCIAnalysis(data_list)
+    mcia_instance = MCoIAnalysis(data_list)
 
 
 def test_plotting():
@@ -423,7 +425,7 @@ def test_plotting():
 
     data_list = [dataset1]
 
-    mcia_instance = MCIAnalysis(data_list)
+    mcia_instance = MCoIAnalysis(data_list)
 
 
     projected = mcia_instance.project(dataset2)
@@ -479,7 +481,7 @@ def test_plotting_2():
 
     data_list = [dataset1]
 
-    mcia_instance = MCIAnalysis(data_list)
+    mcia_instance = MCoIAnalysis(data_list)
 
     projected = mcia_instance.project(dataset2)
 
@@ -533,11 +535,11 @@ def test_plotting_3():
 
     data_list = [dataset1]
 
-    mcia_instance = MCIAnalysis(data_list)
+    mcia_instance = MCoIAnalysis(data_list)
 
     data_list = [dataset2]
 
-    projected = MCIAnalysis(data_list)
+    projected = MCoIAnalysis(data_list)
 
     import matplotlib.pyplot as plt
 
@@ -597,7 +599,7 @@ def test_plotting_multiple_dataset():
 
     data_list = [dataset1, dataset2]
 
-    mcia_instance = MCIAnalysis(data_list)
+    mcia_instance = MCoIAnalysis(data_list)
 
     num_datasets = 2
     chunk_size = mcia_instance.column_projection.shape[0] // num_datasets

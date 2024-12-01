@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import TruncatedSVD
 
-from mcioa.functions.normalization_per_block import ktab_util_names, normalize_matrix_by_block, recalculate
-from mcioa.functions.multi_eigenanalysis import multi_block_eigenanalysis
+from .normalization_per_block import ktab_util_names, normalize_matrix_by_block, recalculate
+from .multi_eigenanalysis import multi_block_eigenanalysis
 
 
 def row_normed_column_projection(number_rows, number_Datasets, n_dim, row_weight, datasets, auxiliary_names,
